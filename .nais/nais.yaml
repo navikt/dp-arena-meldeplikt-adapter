@@ -1,0 +1,42 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: dp-arena-meldeplikt-adapter
+  namespace: teamdagpenger
+  labels:
+    team: teamdagpenger
+spec:
+  image: {{ image }}
+  port: 8080
+  prometheus:
+    enabled: true
+    path: /metrics
+  liveness:
+    path: /isalive
+  readiness:
+    path: /isready
+  startup:
+    path: /isready
+  replicas:
+    min: 2
+    max: 4
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  ingresses:
+    {{#each ingresses as |url|}}
+     - {{ url }}
+    {{/each}}
+  secureLogs:
+    enabled: true
+  envFrom:
+    - secret: {{ appName }}
+  tokenx:
+    enabled: true
+  accessPolicy:
+    inbound:
+      rules:
+        - application: dp-rapportering-v2
