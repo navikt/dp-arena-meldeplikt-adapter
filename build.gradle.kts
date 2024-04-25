@@ -13,8 +13,8 @@ sourceSets {
 }
 
 plugins {
-    // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    alias(libs.plugins.jvm)
+    // Apply the org.jetbrains.kotlin.jvm plugin to add support for Kotlin.
+    kotlin("jvm") version "1.9.23"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -41,12 +41,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     // Use the Kotlin JUnit 5 integration.
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-
-    // Use the JUnit 5 integration.
-    testImplementation(libs.junit.jupiter.engine)
-
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(kotlin("test-junit5"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
