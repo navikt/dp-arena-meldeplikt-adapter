@@ -16,7 +16,7 @@ on:
           - p
 
 env:
-  APPNAME: meldekort-frontend
+  APPNAME: dp-arena-meldeplikt-adapter
   ENVIRONMENT: ${{ github.event.inputs.environment }}
 
 jobs:
