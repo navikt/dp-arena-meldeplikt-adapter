@@ -10,13 +10,11 @@ spec:
   port: 8080
   prometheus:
     enabled: true
-    path: /metrics
+    path: /internal/metrics
   liveness:
-    path: /isalive
+    path: /internal/isalive
   readiness:
-    path: /isready
-  startup:
-    path: /isready
+    path: /internal/isready
   replicas:
     min: 2
     max: 4
