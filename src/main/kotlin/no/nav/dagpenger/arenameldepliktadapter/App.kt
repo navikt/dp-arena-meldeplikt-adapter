@@ -5,6 +5,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.routing.*
 import no.nav.dagpenger.arenameldepliktadapter.api.internalApi
+import no.nav.dagpenger.arenameldepliktadapter.api.meldekortApi
 
 fun main() {
     embeddedServer(
@@ -18,5 +19,6 @@ fun main() {
 fun Application.module() {
     install(Routing) {
         internalApi()
+        meldekortApi()
     }
 }
