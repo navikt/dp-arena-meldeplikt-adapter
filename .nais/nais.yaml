@@ -37,4 +37,4 @@ spec:
   accessPolicy:
     inbound:
       rules:
-        - application: dp-rapportering-v2
+        - application: dp-rapportering
