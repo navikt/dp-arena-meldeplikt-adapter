@@ -1,2 +1,4 @@
 ingresses:
   - https://dp-arena-meldeplikt-adapter.nav.no
+dp_proxy:
+  ingress: dp-proxy.prod-fss-pub.nais.io

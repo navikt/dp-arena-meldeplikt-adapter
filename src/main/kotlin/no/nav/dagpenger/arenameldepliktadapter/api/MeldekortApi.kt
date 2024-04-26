@@ -7,6 +7,7 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -34,6 +35,7 @@ fun Route.meldekortApi() {
 
             val ARENA_ORDS_TOKEN_PATH = "/api/oauth/token"
 
+            /*
             val response = httpClient.post("$ordsUrl$ARENA_ORDS_TOKEN_PATH?grant_type=client_credentials") {
                 val base = "${ordsClientId}:${ordsClientSecret}"
                 headers.append("Accept", "application/json; charset=UTF-8")
@@ -41,10 +43,11 @@ fun Route.meldekortApi() {
             }
 
             val token: AccessToken = response.body()
+             */
 
             httpClient.close()
 
-            call.respondText(token.accessToken ?: "")
+            call.respondText("Meldekort")
         }
     }
 }
