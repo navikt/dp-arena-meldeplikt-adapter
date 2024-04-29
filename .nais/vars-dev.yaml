@@ -2,3 +2,4 @@ ingresses:
   - https://dp-arena-meldeplikt-adapter.intern.dev.nav.no
 dp_proxy:
   ingress: dp-proxy.dev-fss-pub.nais.io
+  scope: api://dev-fss.teamdagpenger.dp-proxy/.default

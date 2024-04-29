@@ -1,53 +1,60 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.jackson.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import java.util.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
+import io.ktor.serialization.kotlinx.xml.xml
+import io.ktor.server.application.call
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.route
+import kotlinx.coroutines.runBlocking
+import no.nav.dagpenger.oauth2.CachedOauth2Client
+import no.nav.dagpenger.oauth2.OAuth2Config
+import java.time.Duration
 
 fun Route.meldekortApi() {
-    route("/meldekort") {
+    route("/meldekort/{fnr}") {
         get {
             val httpClient = HttpClient(CIO) {
                 install(ContentNegotiation) {
-                    jackson()
+                    xml()
                 }
                 install(HttpTimeout) {
-                    connectTimeoutMillis = 5000
-                    requestTimeoutMillis = 10000
-                    socketTimeoutMillis = 10000
+                    connectTimeoutMillis = Duration.ofSeconds(60).toMillis()
+                    requestTimeoutMillis = Duration.ofSeconds(60).toMillis()
+                    socketTimeoutMillis = Duration.ofSeconds(60).toMillis()
                 }
                 expectSuccess = false
             }
 
-            val ordsUrl = getEnv("ORDS_URI")
-            val ordsClientId = getEnv("CLIENT_ID")
-            val ordsClientSecret = getEnv("CLIENT_SECRET")
+            val tokenProvider = dpProxyTokenProvider()
 
-            val ARENA_ORDS_TOKEN_PATH = "/api/oauth/token"
-
-            /*
-            val response = httpClient.post("$ordsUrl$ARENA_ORDS_TOKEN_PATH?grant_type=client_credentials") {
-                val base = "${ordsClientId}:${ordsClientSecret}"
-                headers.append("Accept", "application/json; charset=UTF-8")
-                headers.append("Authorization", "Basic ${Base64.getEncoder().encodeToString(base.toByteArray())}")
+            val response = httpClient.get("") {
+                header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+                header(HttpHeaders.Accept, "application/xml")
+                // header(HttpHeaders.XRequestId, requestId)
+                // header(HttpHeaders.XCorrelationId, eksternId)
+                /*
+                if (meldekortId != null) {
+                    header("meldekortId", meldekortId)
+                }
+                if (fnr != null) {
+                    header("fnr", fnr)
+                }
+                */
+                header("fnr", call.parameters["fnr"])
             }
-
-            val token: AccessToken = response.body()
-             */
 
             httpClient.close()
 
-            call.respondText("Meldekort")
+            call.respondText(response.bodyAsText())
         }
     }
 }
@@ -56,12 +63,23 @@ fun getEnv(propertyName: String): String? {
     return System.getProperty(propertyName, System.getenv(propertyName))
 }
 
-data class AccessToken(
-    @JsonProperty("access_token")
-    val accessToken: String?,
-    @JsonProperty("token_type")
-    val tokenType: String?,
-    @JsonProperty("expires_in")
-    val expiresIn: Int?
-)
+fun dpProxyTokenProvider(): () -> String = azureAdTokenSupplier(getEnv("DP_PROXY_SCOPE") ?: "")
 
+private fun azureAdTokenSupplier(scope: String): () -> String = {
+    runBlocking { azureAdClient.clientCredentials(scope).accessToken }
+}
+
+private val azureAdClient: CachedOauth2Client by lazy {
+    val config = HashMap<String, String>()
+    config.set("CLIENT_ID_KEY", getEnv("AZURE_APP_CLIENT_ID") ?: "")
+    config.set("CLIENT_SECRET_KEY", getEnv("AZURE_APP_CLIENT_SECRET") ?: "")
+    config.set("PRIVATE_JWK_KEY", getEnv("AZURE_APP_JWK") ?: "")
+    config.set("TOKEN_ENDPOINT_KEY", getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: "")
+    config.set("WELLKNOWN_URL_KEY", getEnv("AZURE_APP_WELL_KNOWN_URL") ?: "")
+
+    val azureAdConfig = OAuth2Config.AzureAd(config)
+    CachedOauth2Client(
+        tokenEndpointUrl = azureAdConfig.tokenEndpointUrl,
+        authType = azureAdConfig.clientSecret(),
+    )
+}

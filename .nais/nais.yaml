@@ -30,8 +30,9 @@ spec:
     {{/each}}
   secureLogs:
     enabled: true
-  envFrom:
-    - secret: {{ appName }}
+  env:
+    - name: DP_PROXY_SCOPE
+      value: {{ dp_proxy.scope }}
   tokenx:
     enabled: true
   azure:
@@ -43,4 +44,4 @@ spec:
         - application: dp-rapportering
     outbound:
       external:
-        - host: {{dp_proxy.ingress}}
+        - host: {{ dp_proxy.ingress }}
