@@ -71,11 +71,11 @@ private fun azureAdTokenSupplier(scope: String): () -> String = {
 
 private val azureAdClient: CachedOauth2Client by lazy {
     val config = HashMap<String, String>()
-    config.set("CLIENT_ID_KEY", getEnv("AZURE_APP_CLIENT_ID") ?: "")
-    config.set("CLIENT_SECRET_KEY", getEnv("AZURE_APP_CLIENT_SECRET") ?: "")
-    config.set("PRIVATE_JWK_KEY", getEnv("AZURE_APP_JWK") ?: "")
-    config.set("TOKEN_ENDPOINT_KEY", getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: "")
-    config.set("WELLKNOWN_URL_KEY", getEnv("AZURE_APP_WELL_KNOWN_URL") ?: "")
+    config["AZURE_APP_CLIENT_ID"] = getEnv("AZURE_APP_CLIENT_ID") ?: ""
+    config["AZURE_APP_CLIENT_SECRET"] = getEnv("AZURE_APP_CLIENT_SECRET") ?: ""
+    config["AZURE_APP_JWK"] = getEnv("AZURE_APP_JWK") ?: ""
+    config["AZURE_OPENID_CONFIG_TOKEN_ENDPOINT"] = getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: ""
+    config["AZURE_APP_WELL_KNOWN_URL"] = getEnv("AZURE_APP_WELL_KNOWN_URL") ?: ""
 
     val azureAdConfig = OAuth2Config.AzureAd(config)
     CachedOauth2Client(
