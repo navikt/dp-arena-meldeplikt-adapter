@@ -36,7 +36,7 @@ fun Route.meldekortApi() {
 
             val tokenProvider = dpProxyTokenProvider()
 
-            val response = httpClient.get("") {
+            val response = httpClient.get(getEnv("DP_PROXY_URL") + "/v2/meldeplikt/meldekort") {
                 header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
                 header(HttpHeaders.Accept, "application/xml")
                 // header(HttpHeaders.XRequestId, requestId)
