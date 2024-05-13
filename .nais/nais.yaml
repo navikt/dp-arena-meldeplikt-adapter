@@ -32,7 +32,7 @@ spec:
     enabled: true
   env:
     - name: MELDEKORTSERVICE_URL
-      value: 'https://{{ meldekortserviceHost }}/meldekortservice/'
+      value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
     - name: MELDEKORTSERVICE_SCOPE
       value: {{ meldekortserviceScope }}
   tokenx:
