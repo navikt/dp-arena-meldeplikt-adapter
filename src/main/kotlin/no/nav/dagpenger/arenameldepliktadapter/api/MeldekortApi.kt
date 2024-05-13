@@ -20,7 +20,7 @@ import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.Duration
 
 fun Route.meldekortApi() {
-    route("/meldekort/{fnr}") {
+    route("/meldekort/{ident}") {
         get {
             val httpClient = HttpClient(CIO) {
                 install(ContentNegotiation) {
@@ -36,9 +36,10 @@ fun Route.meldekortApi() {
 
             val tokenProvider = dpProxyTokenProvider()
 
-            val response = httpClient.get(getEnv("DP_PROXY_URL") + "/v2/meldeplikt/meldekort") {
+            val response = httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
                 header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
-                header(HttpHeaders.Accept, "application/xml")
+                header(HttpHeaders.Accept, "application/json")
+                header(HttpHeaders.ContentType, "application/json")
                 // header(HttpHeaders.XRequestId, requestId)
                 // header(HttpHeaders.XCorrelationId, eksternId)
                 /*
@@ -49,7 +50,7 @@ fun Route.meldekortApi() {
                     header("fnr", fnr)
                 }
                 */
-                header("fnr", call.parameters["fnr"])
+                header("ident", call.parameters["ident"])
             }
 
             httpClient.close()
@@ -63,7 +64,7 @@ fun getEnv(propertyName: String): String? {
     return System.getProperty(propertyName, System.getenv(propertyName))
 }
 
-fun dpProxyTokenProvider(): () -> String = azureAdTokenSupplier(getEnv("DP_PROXY_SCOPE") ?: "")
+fun dpProxyTokenProvider(): () -> String = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
 
 private fun azureAdTokenSupplier(scope: String): () -> String = {
     runBlocking { azureAdClient.clientCredentials(scope).accessToken }

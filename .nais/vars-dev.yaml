@@ -1,5 +1,4 @@
 ingresses:
   - https://dp-arena-meldeplikt-adapter.intern.dev.nav.no
-dp_proxy:
-  ingress: dp-proxy.dev-fss-pub.nais.io
-  scope: api://dev-fss.teamdagpenger.dp-proxy/.default
+meldekortserviceHost: meldekortservice-q1.dev-fss-pub.nais.io
+meldekortserviceScope: dev-fss:meldekort:meldekortservice-q1

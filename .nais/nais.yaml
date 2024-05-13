@@ -31,10 +31,10 @@ spec:
   secureLogs:
     enabled: true
   env:
-    - name: DP_PROXY_URL
-      value: "https://{{ dp_proxy.ingress }}/proxy/v2/arenaords"
-    - name: DP_PROXY_SCOPE
-      value: {{ dp_proxy.scope }}
+    - name: MELDEKORTSERVICE_URL
+      value: 'https://{{ meldekortserviceHost }}/meldekortservice/'
+    - name: MELDEKORTSERVICE_SCOPE
+      value: {{ meldekortserviceScope }}
   tokenx:
     enabled: true
   azure:
@@ -46,4 +46,4 @@ spec:
         - application: dp-rapportering
     outbound:
       external:
-        - host: {{ dp_proxy.ingress }}
+        - host: {{ meldekortserviceHost }}
