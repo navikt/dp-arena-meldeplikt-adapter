@@ -58,6 +58,7 @@ fun Route.meldekortApi() {
 
             println("######")
             println(text)
+            println(tokenProvider.invoke())
             println("######")
             call.respondText(text)
         }
