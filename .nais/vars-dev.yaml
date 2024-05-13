@@ -1,4 +1,4 @@
 ingresses:
   - https://dp-arena-meldeplikt-adapter.intern.dev.nav.no
 meldekortserviceHost: meldekortservice-q1.dev-fss-pub.nais.io
-meldekortserviceScope: dev-fss:meldekort:meldekortservice-q1
+meldekortserviceScope: api://dev-fss.meldekort.meldekortservice-q1/.default
