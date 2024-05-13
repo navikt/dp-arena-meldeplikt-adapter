@@ -53,9 +53,13 @@ fun Route.meldekortApi() {
                 header("ident", call.parameters["ident"])
             }
 
+            val text = response.bodyAsText()
             httpClient.close()
 
-            call.respondText(response.bodyAsText())
+            println("######")
+            println(text)
+            println("######")
+            call.respondText(text)
         }
     }
 }
