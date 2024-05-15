@@ -9,12 +9,14 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
@@ -55,8 +57,8 @@ fun Route.meldekortApi() {
 
             val response = httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
                 header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
-                header(HttpHeaders.Accept, "application/json")
-                header(HttpHeaders.ContentType, "application/json")
+                header(HttpHeaders.Accept,  ContentType.Application.Json)
+                header(HttpHeaders.ContentType,  ContentType.Application.Json)
                 header("ident", ident)
             }
 
@@ -88,8 +90,7 @@ fun Route.meldekortApi() {
             println(tokenProvider.invoke())
             println("######")
 
-            call.response.header(HttpHeaders.ContentType, "application/json")
-            call.respond(rapporteringsperioder)
+            call.respondText(defaultObjectMapper.writeValueAsString(rapporteringsperioder), ContentType.Application.Json)
         }
     }
 }
