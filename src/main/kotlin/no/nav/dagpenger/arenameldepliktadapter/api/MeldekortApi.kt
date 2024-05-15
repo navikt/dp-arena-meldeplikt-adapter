@@ -1,5 +1,6 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -7,6 +8,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
@@ -58,7 +60,7 @@ fun Route.meldekortApi() {
             }
 
             val status = response.status
-            val person: Person = response.body()
+            val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
             val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                 meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
