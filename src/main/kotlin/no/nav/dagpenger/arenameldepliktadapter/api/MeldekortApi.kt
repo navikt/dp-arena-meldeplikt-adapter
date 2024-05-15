@@ -13,6 +13,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.call
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -87,6 +88,7 @@ fun Route.meldekortApi() {
             println(tokenProvider.invoke())
             println("######")
 
+            call.response.header(HttpHeaders.ContentType, "application/json")
             call.respond(rapporteringsperioder)
         }
     }
