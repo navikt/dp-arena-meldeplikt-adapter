@@ -100,9 +100,6 @@ class AppTest {
         /*
         externalServices {
             hosts("https://meldekortservice/v2/meldekort") {
-                this@testApplication.install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
-                    jackson()
-                }
                 this@testApplication.routing {
                     get("/v2/meldekort") {
                         call.respond(person)
