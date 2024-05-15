@@ -1,5 +1,7 @@
 val ktorVersion = "2.3.10"
+val jacksonVersion = "2.17.1"
 val logbackVersion = "1.5.6"
+val mockOauthVersion = "2.1.5"
 
 sourceSets {
     this.getByName("main"){
@@ -37,17 +39,21 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
+    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
 
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-xml:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
     implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.04.19-22.15.14f433acbbcb")
 
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
+    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
+    testImplementation("no.nav.security:mock-oauth2-server:$mockOauthVersion")
     // Use the Kotlin JUnit 5 integration.
     testImplementation(kotlin("test-junit5"))
 }

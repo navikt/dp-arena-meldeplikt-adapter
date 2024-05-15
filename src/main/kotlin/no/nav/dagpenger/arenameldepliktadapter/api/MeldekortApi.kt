@@ -1,20 +1,29 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.xml.xml
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.call
-import io.ktor.server.response.respondText
+import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
+import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitetstidslinje
+import no.nav.dagpenger.arenameldepliktadapter.models.Dag
+import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
+import no.nav.dagpenger.arenameldepliktadapter.models.Periode
+import no.nav.dagpenger.arenameldepliktadapter.models.Person
+import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.Duration
@@ -24,7 +33,7 @@ fun Route.meldekortApi() {
         get {
             val httpClient = HttpClient(CIO) {
                 install(ContentNegotiation) {
-                    xml()
+                    jackson { defaultObjectMapper }
                 }
                 install(HttpTimeout) {
                     connectTimeoutMillis = Duration.ofSeconds(60).toMillis()
@@ -34,44 +43,60 @@ fun Route.meldekortApi() {
                 expectSuccess = false
             }
 
-            val tokenProvider = dpProxyTokenProvider()
+            val tokenProvider = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
+            val ident = call.parameters["ident"]
+
+            if (ident.isNullOrBlank() || ident.length != 11) {
+                call.respond(HttpStatusCode.BadRequest)
+            }
 
             val response = httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
                 header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
                 header(HttpHeaders.Accept, "application/json")
                 header(HttpHeaders.ContentType, "application/json")
-                // header(HttpHeaders.XRequestId, requestId)
-                // header(HttpHeaders.XCorrelationId, eksternId)
-                /*
-                if (meldekortId != null) {
-                    header("meldekortId", meldekortId)
-                }
-                if (fnr != null) {
-                    header("fnr", fnr)
-                }
-                */
-                header("ident", call.parameters["ident"])
+                header("ident", ident)
             }
 
             val status = response.status
-            val text = response.bodyAsText()
+            val person: Person = response.body()
+
+            val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
+                        && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
+            }?.map { meldekort ->
+                Rapporteringsperiode(
+                    ident!!,
+                    meldekort.meldekortId,
+                    Periode(
+                        meldekort.fraDato,
+                        meldekort.tilDato,
+                        meldekort.tilDato.minusDays(1)
+                    ),
+                    Aktivitetstidslinje(),
+                    kanKorrigeres(meldekort, person.meldekortListe)
+                )
+            } ?: emptyList()
+
             httpClient.close()
 
             println("######")
             println(status)
-            println(text)
+            println(rapporteringsperioder)
             println(tokenProvider.invoke())
             println("######")
-            call.respondText(text)
+
+            call.respond(rapporteringsperioder)
         }
     }
 }
 
-fun getEnv(propertyName: String): String? {
-    return System.getProperty(propertyName, System.getenv(propertyName))
+private fun kanKorrigeres(meldekort: Meldekort, meldekortListe: List<Meldekort>): Boolean {
+    return if (meldekort.kortType == "10" || meldekort.beregningstatus == "UBEHA") {
+        false
+    } else {
+        meldekortListe.find { mk -> (meldekort.meldekortId != mk.meldekortId && meldekort.meldeperiode == mk.meldeperiode && mk.kortType == "10") } == null
+    }
 }
-
-fun dpProxyTokenProvider(): () -> String = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
 
 private fun azureAdTokenSupplier(scope: String): () -> String = {
     runBlocking { azureAdClient.clientCredentials(scope).accessToken }

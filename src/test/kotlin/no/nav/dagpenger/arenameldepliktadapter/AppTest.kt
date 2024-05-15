@@ -3,11 +3,154 @@
  */
 package no.nav.dagpenger.arenameldepliktadapter
 
+import com.fasterxml.jackson.module.kotlin.readValue
+import io.ktor.client.request.get
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.config.MapApplicationConfig
+import io.ktor.server.testing.testApplication
+import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitetstidslinje
+import no.nav.dagpenger.arenameldepliktadapter.models.Periode
+import no.nav.dagpenger.arenameldepliktadapter.models.Person
+import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import no.nav.security.mock.oauth2.MockOAuth2Server
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class AppTest {
+
+    companion object {
+
+        const val ISSUER_ID = "default"
+        const val REQUIRED_AUDIENCE = "default"
+        val person: Person = defaultObjectMapper.readValue<Person>(
+            "{\n" +
+                    "\t\"personId\": 5134902,\n" +
+                    "\t\"etternavn\": \"AGURKTID\",\n" +
+                    "\t\"fornavn\": \"KONSEKVENT\",\n" +
+                    "\t\"maalformkode\": \"NO\",\n" +
+                    "\t\"meldeform\": \"EMELD\",\n" +
+                    "\t\"meldekortListe\": [\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"meldekortId\": 1802235422,\n" +
+                    "\t\t\t\"kortType\": \"09\",\n" +
+                    "\t\t\t\"meldeperiode\": \"202415\",\n" +
+                    "\t\t\t\"fraDato\": \"2024-04-08\",\n" +
+                    "\t\t\t\"tilDato\": \"2024-04-21\",\n" +
+                    "\t\t\t\"hoyesteMeldegruppe\": \"ARBS\",\n" +
+                    "\t\t\t\"beregningstatus\": \"OPPRE\",\n" +
+                    "\t\t\t\"forskudd\": false,\n" +
+                    "\t\t\t\"bruttoBelop\": 0.0\n" +
+                    "\t\t},\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"meldekortId\": 1802235430,\n" +
+                    "\t\t\t\"kortType\": \"09\",\n" +
+                    "\t\t\t\"meldeperiode\": \"202417\",\n" +
+                    "\t\t\t\"fraDato\": \"2024-04-22\",\n" +
+                    "\t\t\t\"tilDato\": \"2024-05-05\",\n" +
+                    "\t\t\t\"hoyesteMeldegruppe\": \"ARBS\",\n" +
+                    "\t\t\t\"beregningstatus\": \"OPPRE\",\n" +
+                    "\t\t\t\"forskudd\": false,\n" +
+                    "\t\t\t\"bruttoBelop\": 0.0\n" +
+                    "\t\t},\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"meldekortId\": 1802235448,\n" +
+                    "\t\t\t\"kortType\": \"05\",\n" +
+                    "\t\t\t\"meldeperiode\": \"202419\",\n" +
+                    "\t\t\t\"fraDato\": \"2024-05-06\",\n" +
+                    "\t\t\t\"tilDato\": \"2024-05-19\",\n" +
+                    "\t\t\t\"hoyesteMeldegruppe\": \"ARBS\",\n" +
+                    "\t\t\t\"beregningstatus\": \"OPPRE\",\n" +
+                    "\t\t\t\"forskudd\": false,\n" +
+                    "\t\t\t\"bruttoBelop\": 0.0\n" +
+                    "\t\t}\n" +
+                    "\t],\n" +
+                    "\t\"fravaerListe\": []\n" +
+                    "}\n"
+        )
+
+        var mockOAuth2Server = MockOAuth2Server()
+
+        @BeforeAll
+        @JvmStatic
+        fun setup() {
+            mockOAuth2Server = MockOAuth2Server()
+            mockOAuth2Server.start(8091)
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun cleanup() {
+            mockOAuth2Server.shutdown()
+        }
+    }
+
+    @Ignore
+    @Test
+    fun testRoot() = testApplication {
+        environment {
+            config = setOidcConfig()
+        }
+        application {
+            module()
+        }
+        /*
+        externalServices {
+            hosts("https://meldekortservice/v2/meldekort") {
+                this@testApplication.install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                    jackson()
+                }
+                this@testApplication.routing {
+                    get("/v2/meldekort") {
+                        call.respond(person)
+                    }
+                }
+            }
+        }
+        */
+
+        val ident = "01020312345"
+
+        val response = client.get("/meldekort/$ident")
+        assertEquals(HttpStatusCode.OK, response.status)
+        // assertEquals("Hello, world!", response.bodyAsText())
+    }
+
     @Test
     fun appHasAGreeting() {
+        val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+            meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
+                    && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
+        }?.map { meldekort ->
+            Rapporteringsperiode(
+                "01020312345",
+                meldekort.meldekortId,
+                Periode(
+                    meldekort.fraDato,
+                    meldekort.tilDato,
+                    meldekort.tilDato.minusDays(1)
+                ),
+                Aktivitetstidslinje(),
+                true
+            )
+        } ?: emptyList()
 
+        println(defaultObjectMapper.writeValueAsString(rapporteringsperioder))
+    }
+
+    fun setOidcConfig(): MapApplicationConfig {
+        return MapApplicationConfig(
+            "no.nav.security.jwt.issuers.size" to "2",
+            "no.nav.security.jwt.issuers.0.issuer_name" to ISSUER_ID,
+            "no.nav.security.jwt.issuers.0.discoveryurl" to mockOAuth2Server.wellKnownUrl(ISSUER_ID).toString(),
+            "no.nav.security.jwt.issuers.0.accepted_audience" to REQUIRED_AUDIENCE,
+            "no.nav.security.jwt.issuers.1.issuer_name" to "azureAd",
+            "no.nav.security.jwt.issuers.1.discoveryurl" to mockOAuth2Server.wellKnownUrl("azureAd").toString(),
+            "no.nav.security.jwt.issuers.1.accepted_audience" to REQUIRED_AUDIENCE,
+            "ktor.environment" to "local"
+        )
     }
 }
