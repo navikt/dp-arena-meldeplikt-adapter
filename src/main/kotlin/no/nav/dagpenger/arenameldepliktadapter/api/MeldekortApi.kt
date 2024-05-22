@@ -17,6 +17,7 @@ import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
+import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
@@ -59,7 +60,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             meldekort.fraDato,
                             meldekort.tilDato
                         ),
-                        emptyList(),
+                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), emptyList()) },
                         kanSendesFra,
                         !LocalDate.now().isBefore(kanSendesFra),
                         kanKorrigeres(meldekort, person.meldekortListe)
