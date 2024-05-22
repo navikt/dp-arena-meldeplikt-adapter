@@ -1,4 +1,4 @@
-val ktorVersion = "2.3.10"
+val ktorVersion = "2.3.11"
 val jacksonVersion = "2.17.1"
 val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.5"
@@ -16,13 +16,13 @@ sourceSets {
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm plugin to add support for Kotlin.
-    kotlin("jvm") version "1.9.23"
+    kotlin("jvm") version "1.9.24"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
 
     // Apply the Ktor plugin to create the application distribution
-    id("io.ktor.plugin") version "2.3.10"
+    id("io.ktor.plugin") version "2.3.11"
 }
 
 application {
@@ -45,7 +45,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.04.19-22.15.14f433acbbcb")
+    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.05.15-10.36.c98cfe9cb526")
 
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
