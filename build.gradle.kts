@@ -4,11 +4,11 @@ val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.5"
 
 sourceSets {
-    this.getByName("main"){
+    this.getByName("main") {
         this.kotlin.srcDir("src/main/kotlin")
         this.resources.srcDir("src/main/resources")
     }
-    this.getByName("test"){
+    this.getByName("test") {
         this.kotlin.srcDir("src/test/kotlin")
         this.resources.srcDir("src/test/resources")
     }
@@ -42,11 +42,11 @@ dependencies {
 
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
+
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
     implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.05.15-10.36.c98cfe9cb526")
-
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
