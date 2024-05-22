@@ -27,7 +27,7 @@ plugins {
 
 application {
     // Define the main class for the application
-    mainClass.set("no.nav.dagpenger.arenameldepliktadapter.AppKt")
+    mainClass.set("io.ktor.server.netty.EngineMain")
 }
 
 repositories {
