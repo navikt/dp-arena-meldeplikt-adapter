@@ -1,42 +1,41 @@
 package no.nav.dagpenger.arenameldepliktadapter.models
 
 import java.time.LocalDate
-import java.util.*
-import kotlin.time.Duration
 
 data class Rapporteringsperiode(
-    val ident: String,
-    val id: Long,  // meldekortId
+    val id: Long, // meldekortId
     val periode: Periode,
-    val aktivitetstidslinje: Aktivitetstidslinje,
-    val kanKorrigeres: Boolean,
-)
-
-data class Periode(
-    val fra: LocalDate,
-    val til: LocalDate,
+    val dager: List<Dag>,
     val kanSendesFra: LocalDate,
+    val kanSendes: Boolean,
+    val kanKorrigeres: Boolean
 )
 
-data class Aktivitetstidslinje internal constructor(
-    private val dager: MutableSet<Dag> = mutableSetOf(),
-)
+data class Periode(val fraOgMed: LocalDate, val tilOgMed: LocalDate) {
+    init {
+        require(!fraOgMed.isAfter(tilOgMed)) {
+            "Fra og med-dato kan ikke være etter til og med-dato"
+        }
+    }
+
+    fun inneholder(dato: LocalDate): Boolean {
+        return !dato.isBefore(fraOgMed) && !dato.isAfter(tilOgMed)
+    }
+}
 
 class Dag(
-    internal val dato: LocalDate,
-    private val aktiviteter: MutableList<Aktivitet>,
+    val dato: LocalDate,
+    val aktiviteter: List<Aktivitet> = emptyList()
 )
 
-sealed class Aktivitet(
+data class Aktivitet(
     val dato: LocalDate,
-    val tid: Duration,
-    val type: AktivitetType,
-    val uuid: UUID = UUID.randomUUID(),
-) {
-    enum class AktivitetType {
-        Arbeid,
-        Syk,
-        Utdanning,
-        Annet
-    }
+    val type: AktivitetsType
+)
+
+enum class AktivitetsType {
+    ARBIED,
+    SYK,
+    UTDANNING,
+    FERIEELLERFRAVAER
 }

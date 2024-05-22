@@ -2,10 +2,9 @@ package no.nav.dagpenger.arenameldepliktadapter.api
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -13,11 +12,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import io.ktor.server.routing.Route
+import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
-import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitetstidslinje
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
@@ -26,67 +24,61 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
-import java.time.Duration
+import java.time.LocalDate
 
-fun Route.meldekortApi() {
+fun Routing.meldekortApi(httpClient: HttpClient) {
     route("/meldekort/{ident}") {
         get {
-            val httpClient = HttpClient(CIO) {
-                install(HttpTimeout) {
-                    connectTimeoutMillis = Duration.ofSeconds(60).toMillis()
-                    requestTimeoutMillis = Duration.ofSeconds(60).toMillis()
-                    socketTimeoutMillis = Duration.ofSeconds(60).toMillis()
-                }
-                expectSuccess = false
-            }
-
-            val tokenProvider = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
             val ident = call.parameters["ident"]
 
             if (ident.isNullOrBlank() || ident.length != 11) {
                 call.respond(HttpStatusCode.BadRequest)
             }
 
-            val response = httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
-                header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
-                header(HttpHeaders.Accept, ContentType.Application.Json)
-                header(HttpHeaders.ContentType, ContentType.Application.Json)
-                header("ident", ident)
-            }
+            var retries = 0
+            var response: HttpResponse
 
-            val status = response.status
+            do {
+                response = sendHttpRequest(httpClient, ident!!)
+                retries++
+            } while (response.status != HttpStatusCode.OK && retries < 3)
+
             val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
             val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                 meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
                         && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
             }?.map { meldekort ->
+                val kanSendesFra = meldekort.tilDato.minusDays(1)
+
                 Rapporteringsperiode(
-                    ident!!,
                     meldekort.meldekortId,
                     Periode(
                         meldekort.fraDato,
-                        meldekort.tilDato,
-                        meldekort.tilDato.minusDays(1)
+                        meldekort.tilDato
                     ),
-                    Aktivitetstidslinje(),
+                    emptyList(),
+                    kanSendesFra,
+                    !LocalDate.now().isBefore(kanSendesFra),
                     kanKorrigeres(meldekort, person.meldekortListe)
                 )
             } ?: emptyList()
-
-            httpClient.close()
-
-            println("######")
-            println(status)
-            println(rapporteringsperioder)
-            println(tokenProvider.invoke())
-            println("######")
 
             call.respondText(
                 defaultObjectMapper.writeValueAsString(rapporteringsperioder),
                 ContentType.Application.Json
             )
         }
+    }
+}
+
+private suspend fun sendHttpRequest(httpClient: HttpClient, ident: String): HttpResponse {
+    val tokenProvider = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
+
+    return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
+        header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+        header(HttpHeaders.Accept, ContentType.Application.Json)
+        header("ident", ident)
     }
 }
 

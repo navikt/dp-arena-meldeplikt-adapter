@@ -1,24 +1,15 @@
 package no.nav.dagpenger.arenameldepliktadapter
 
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.routing.*
+import io.ktor.client.HttpClient
+import io.ktor.server.application.Application
+import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.api.internalApi
 import no.nav.dagpenger.arenameldepliktadapter.api.meldekortApi
+import no.nav.dagpenger.arenameldepliktadapter.utils.defaultHttpClient
 
-fun main() {
-    embeddedServer(
-        Netty,
-        port = 8080, // This is the port on which Ktor is listening
-        host = "0.0.0.0",
-        module = Application::module
-    ).start(wait = true)
-}
-
-fun Application.module() {
-    install(Routing) {
+fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
+    routing {
         internalApi()
-        meldekortApi()
+        meldekortApi(httpClient)
     }
 }
