@@ -14,6 +14,10 @@ fun getEnv(propertyName: String): String? {
     return System.getProperty(propertyName, System.getenv(propertyName))
 }
 
+fun isCurrentlyRunningOnNais(): Boolean {
+    return System.getenv("NAIS_APP_NAME") != null
+}
+
 val defaultObjectMapper: ObjectMapper = ObjectMapper()
     .registerKotlinModule()
     .registerModule(JavaTimeModule())

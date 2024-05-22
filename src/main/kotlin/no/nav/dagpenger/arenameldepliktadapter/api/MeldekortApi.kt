@@ -10,6 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
@@ -27,47 +28,49 @@ import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
-    route("/meldekort/{ident}") {
-        get {
-            val ident = call.parameters["ident"]
+    authenticate {
+        route("/meldekort/{ident}") {
+            get {
+                val ident = call.parameters["ident"]
 
-            if (ident.isNullOrBlank() || ident.length != 11) {
-                call.respond(HttpStatusCode.BadRequest)
-            }
+                if (ident.isNullOrBlank() || ident.length != 11) {
+                    call.respond(HttpStatusCode.BadRequest)
+                }
 
-            var retries = 0
-            var response: HttpResponse
+                var retries = 0
+                var response: HttpResponse
 
-            do {
-                response = sendHttpRequest(httpClient, ident!!)
-                retries++
-            } while (response.status != HttpStatusCode.OK && retries < 3)
+                do {
+                    response = sendHttpRequest(httpClient, ident!!)
+                    retries++
+                } while (response.status != HttpStatusCode.OK && retries < 3)
 
-            val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+                val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
-            val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
-                meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
-                        && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
-            }?.map { meldekort ->
-                val kanSendesFra = meldekort.tilDato.minusDays(1)
+                val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                    meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
+                            && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
+                }?.map { meldekort ->
+                    val kanSendesFra = meldekort.tilDato.minusDays(1)
 
-                Rapporteringsperiode(
-                    meldekort.meldekortId,
-                    Periode(
-                        meldekort.fraDato,
-                        meldekort.tilDato
-                    ),
-                    emptyList(),
-                    kanSendesFra,
-                    !LocalDate.now().isBefore(kanSendesFra),
-                    kanKorrigeres(meldekort, person.meldekortListe)
+                    Rapporteringsperiode(
+                        meldekort.meldekortId,
+                        Periode(
+                            meldekort.fraDato,
+                            meldekort.tilDato
+                        ),
+                        emptyList(),
+                        kanSendesFra,
+                        !LocalDate.now().isBefore(kanSendesFra),
+                        kanKorrigeres(meldekort, person.meldekortListe)
+                    )
+                } ?: emptyList()
+
+                call.respondText(
+                    defaultObjectMapper.writeValueAsString(rapporteringsperioder),
+                    ContentType.Application.Json
                 )
-            } ?: emptyList()
-
-            call.respondText(
-                defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                ContentType.Application.Json
-            )
+            }
         }
     }
 }
