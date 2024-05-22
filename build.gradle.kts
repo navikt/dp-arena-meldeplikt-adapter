@@ -45,7 +45,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.04.19-22.15.14f433acbbcb")
+    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.05.15-10.36.c98cfe9cb526")
 
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
