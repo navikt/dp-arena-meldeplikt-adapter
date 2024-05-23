@@ -50,6 +50,7 @@ dependencies {
 
     implementation("no.nav.security:token-validation-ktor-v2:4.1.7")
     implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.05.15-10.36.c98cfe9cb526")
+    implementation("com.auth0:java-jwt:4.4.0")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 

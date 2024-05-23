@@ -1,5 +1,8 @@
 package no.nav.dagpenger.arenameldepliktadapter.utils
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.interfaces.Claim
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -38,4 +41,39 @@ fun defaultHttpClient(): HttpClient {
     }
 
     return httpClient
+}
+
+fun decodeToken(authString: String?): DecodedJWT? {
+    if (authString == null) {
+        return null
+    }
+
+    val token = authString.replace("Bearer ", "")
+
+    if (token.isBlank()) {
+        return null
+    }
+
+    return try {
+        JWT.decode(token)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun extractSubject(decodedToken: DecodedJWT?): String? {
+    if (decodedToken == null) {
+        return null
+    }
+
+    val pid: Claim = decodedToken.getClaim("pid")
+    val sub: Claim = decodedToken.getClaim("sub")
+
+    if (!pid.isNull) {
+        return pid.asString()
+    } else if (!sub.isNull) {
+        return sub.asString()
+    }
+
+    return null
 }

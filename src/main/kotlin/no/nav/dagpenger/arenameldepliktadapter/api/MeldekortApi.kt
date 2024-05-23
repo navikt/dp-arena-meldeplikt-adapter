@@ -11,6 +11,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
+import io.ktor.server.request.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
@@ -22,7 +23,9 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
@@ -30,19 +33,21 @@ import java.time.LocalDate
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
-        route("/meldekort/{ident}") {
+        route("/meldekort") {
             get {
-                val ident = call.parameters["ident"]
+                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
+                val ident = extractSubject(decodedToken)
 
                 if (ident.isNullOrBlank() || ident.length != 11) {
-                    call.respond(HttpStatusCode.BadRequest)
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
                 }
 
                 var retries = 0
                 var response: HttpResponse
 
                 do {
-                    response = sendHttpRequest(httpClient, ident!!)
+                    response = sendHttpRequest(httpClient, ident)
                     retries++
                 } while (response.status != HttpStatusCode.OK && retries < 3)
 

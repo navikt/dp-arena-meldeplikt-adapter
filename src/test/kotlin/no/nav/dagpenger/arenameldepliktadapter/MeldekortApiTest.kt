@@ -14,6 +14,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -68,10 +69,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testMeldekortUtenToken() = setUpTestApplication {
-
-        val ident = "01020312345"
-
-        val response = client.get("/meldekort/$ident") {
+        val response = client.get("/meldekort") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -93,9 +91,16 @@ class MeldekortApiTest : TestBase() {
         }
 
         val ident = "01020312345"
-        val token = mockOAuth2Server.issueToken(TOKENX_ISSUER_ID).serialize()
+        val token = mockOAuth2Server.issueToken(
+            TOKENX_ISSUER_ID,
+            "myclient",
+            DefaultOAuth2TokenCallback(
+                audience = listOf(REQUIRED_AUDIENCE),
+                claims = mapOf("pid" to ident)
+            )
+        ).serialize()
 
-        val response = client.get("/meldekort/$ident") {
+        val response = client.get("/meldekort") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
