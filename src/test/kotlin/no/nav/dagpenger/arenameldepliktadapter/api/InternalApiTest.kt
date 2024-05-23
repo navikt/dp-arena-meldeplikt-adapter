@@ -1,4 +1,4 @@
-package no.nav.dagpenger.arenameldepliktadapter
+package no.nav.dagpenger.arenameldepliktadapter.api
 
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode

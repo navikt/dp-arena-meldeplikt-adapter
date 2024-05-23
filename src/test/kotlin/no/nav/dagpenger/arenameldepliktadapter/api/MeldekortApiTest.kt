@@ -1,4 +1,4 @@
-package no.nav.dagpenger.arenameldepliktadapter
+package no.nav.dagpenger.arenameldepliktadapter.api
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.request.get

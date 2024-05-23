@@ -11,7 +11,10 @@ data class Rapporteringsperiode(
     val kanKorrigeres: Boolean
 )
 
-data class Periode(val fraOgMed: LocalDate, val tilOgMed: LocalDate)
+data class Periode(
+    val fraOgMed: LocalDate,
+    val tilOgMed: LocalDate
+)
 
 class Dag(
     val dato: LocalDate,
@@ -20,14 +23,12 @@ class Dag(
 
 data class Aktivitet(
     val type: AktivitetsType,
-    val timer: String,
-){
+    val timer: String
+) {
     enum class AktivitetsType {
         Arbeid,
         Syk,
         Utdanning,
-        Fravaer,
+        Fravaer
     }
 }
-
-
