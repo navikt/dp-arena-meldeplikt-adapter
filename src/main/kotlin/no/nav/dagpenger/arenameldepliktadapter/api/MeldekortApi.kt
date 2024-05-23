@@ -43,14 +43,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     return@get
                 }
 
-                var retries = 0
-                var response: HttpResponse
-
-                do {
-                    response = sendHttpRequest(httpClient, ident)
-                    retries++
-                } while (response.status != HttpStatusCode.OK && retries < 3)
-
+                val response = sendHttpRequestWithRetry(httpClient, ident, "/v2/meldekort")
                 val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                 val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
@@ -78,13 +71,51 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                 )
             }
         }
+
+        route("/meldekortdetaljer/{meldekortId}") {
+            get {
+                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
+                val ident = extractSubject(decodedToken)
+
+                if (ident.isNullOrBlank() || ident.length != 11) {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
+                }
+
+                val meldekortId = call.parameters["meldekortId"]
+                if (meldekortId.isNullOrBlank()) {
+                    call.respond(HttpStatusCode.BadRequest)
+                    return@get
+                }
+
+                val response =
+                    sendHttpRequestWithRetry(httpClient, ident, "/v2/meldekortdetaljer?meldekortId=$meldekortId")
+
+                call.respondText(
+                    response.bodyAsText(),
+                    ContentType.Application.Json
+                )
+            }
+        }
     }
 }
 
-private suspend fun sendHttpRequest(httpClient: HttpClient, ident: String): HttpResponse {
+private suspend fun sendHttpRequestWithRetry(httpClient: HttpClient, ident: String, path: String): HttpResponse {
+    var retries = 0
+    var response: HttpResponse
+
+    do {
+        response = sendHttpRequest(httpClient, ident, path)
+        retries++
+    } while (response.status != HttpStatusCode.OK && retries < 3)
+
+    return response
+}
+
+private suspend fun sendHttpRequest(httpClient: HttpClient, ident: String, path: String): HttpResponse {
     val tokenProvider = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
 
-    return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + "/v2/meldekort") {
+    return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
         header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
         header(HttpHeaders.Accept, ContentType.Application.Json)
         header("ident", ident)
