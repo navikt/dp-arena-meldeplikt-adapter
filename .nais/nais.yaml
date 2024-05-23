@@ -35,6 +35,8 @@ spec:
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
     - name: MELDEKORTSERVICE_SCOPE
       value: {{ meldekortserviceScope }}
+    - name: TOKEN_X_ACCEPTED_AUDIENCE
+      value: {{ tokenxAcceptedAudience }}
   tokenx:
     enabled: true
   azure:
