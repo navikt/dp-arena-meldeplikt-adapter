@@ -88,13 +88,42 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     return@get
                 }
 
-                val response =
-                    sendHttpRequestWithRetry(httpClient, ident, "/v2/meldekortdetaljer?meldekortId=$meldekortId")
+                val response = sendHttpRequestWithRetry(
+                    httpClient,
+                    ident,
+                    "/v2/meldekortdetaljer?meldekortId=$meldekortId"
+                )
 
                 call.respondText(
                     response.bodyAsText(),
                     ContentType.Application.Json
                 )
+            }
+        }
+
+        route("/korrigertMeldekort/{meldekortId}") {
+            get {
+                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
+                val ident = extractSubject(decodedToken)
+
+                if (ident.isNullOrBlank() || ident.length != 11) {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
+                }
+
+                val meldekortId = call.parameters["meldekortId"]
+                if (meldekortId.isNullOrBlank()) {
+                    call.respond(HttpStatusCode.BadRequest)
+                    return@get
+                }
+
+                val response = sendHttpRequestWithRetry(
+                    httpClient,
+                    ident,
+                    "/v2/korrigertMeldekort?meldekortId=$meldekortId"
+                )
+
+                call.respondText(response.bodyAsText())
             }
         }
     }

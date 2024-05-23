@@ -167,4 +167,49 @@ class MeldekortApiTest : TestBase() {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(meldekortserviceResponse, response.bodyAsText())
     }
+
+    @Test
+    fun testKorrigertMeldekortUtenToken() = setUpTestApplication {
+        val response = client.get("/korrigertMeldekort/1234567890") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testKorrigertMeldekort() = setUpTestApplication {
+        val meldekortserviceResponse = "Svar fra Meldekortservice"
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/korrigertMeldekort") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(meldekortserviceResponse)
+                    }
+                }
+            }
+        }
+
+        val ident = "01020312345"
+        val token = mockOAuth2Server.issueToken(
+            TOKENX_ISSUER_ID,
+            "myclient",
+            DefaultOAuth2TokenCallback(
+                audience = listOf(REQUIRED_AUDIENCE),
+                claims = mapOf("pid" to ident)
+            )
+        ).serialize()
+
+        val response = client.get("/korrigertMeldekort/1234567890") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(meldekortserviceResponse, response.bodyAsText())
+    }
 }
