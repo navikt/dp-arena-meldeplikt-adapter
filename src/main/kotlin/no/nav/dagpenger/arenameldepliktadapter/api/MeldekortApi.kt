@@ -77,6 +77,50 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
+        route("/historiskerapporteringsperioder") {
+            get {
+                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
+                val ident = extractSubject(decodedToken)
+
+                if (ident.isNullOrBlank() || ident.length != 11) {
+                    call.respond(HttpStatusCode.Unauthorized)
+                    return@get
+                }
+
+                val response = sendHttpRequestWithRetry(
+                    httpClient,
+                    ident,
+                    "/v2/historiskemeldekort?antallMeldeperioder=5"
+                )
+                val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+
+                val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                    meldekort.hoyesteMeldegruppe in arrayOf(
+                        "ARBS",
+                        "DAGP"
+                    )
+                }?.map { meldekort ->
+                    val kanSendesFra = meldekort.tilDato.minusDays(1)
+
+                    Rapporteringsperiode(
+                        meldekort.meldekortId,
+                        Periode(
+                            meldekort.fraDato,
+                            meldekort.tilDato
+                        ),
+                        kanSendesFra,
+                        !LocalDate.now().isBefore(kanSendesFra),
+                        kanKorrigeres(meldekort, person.meldekortListe)
+                    )
+                }
+
+                call.respondText(
+                    defaultObjectMapper.writeValueAsString(rapporteringsperioder),
+                    ContentType.Application.Json
+                )
+            }
+        }
+
         route("/aktivitetsdager/{meldekortId}") {
             get {
                 val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))

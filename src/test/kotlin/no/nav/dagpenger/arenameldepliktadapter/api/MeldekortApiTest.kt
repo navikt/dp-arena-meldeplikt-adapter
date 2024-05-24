@@ -23,8 +23,54 @@ import kotlin.test.assertEquals
 
 class MeldekortApiTest : TestBase() {
 
+    private val personString = """
+        {
+            "personId": 5134902,
+            "etternavn": "AGURKTID",
+            "fornavn": "KONSEKVENT",
+            "maalformkode": "NO",
+            "meldeform": "EMELD",
+            "meldekortListe": [
+                {
+                    "meldekortId": 1234567890,
+                    "kortType": "05",
+                    "meldeperiode": "202415",
+                    "fraDato": "2024-04-08",
+                    "tilDato": "2024-04-21",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "OPPRE",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567891,
+                    "kortType": "09",
+                    "meldeperiode": "202417",
+                    "fraDato": "2024-04-22",
+                    "tilDato": "2024-05-05",
+                    "hoyesteMeldegruppe": "AAP",
+                    "beregningstatus": "OPPRE",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567892,
+                    "kortType": "10",
+                    "meldeperiode": "202419",
+                    "fraDato": "2024-05-06",
+                    "tilDato": "2024-05-19",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "FERDI",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                }
+            ],
+            "fravaerListe": []
+        }
+    """.trimIndent()
+
     @Test
-    fun testMeldekortUtenToken() = setUpTestApplication {
+    fun testRapporteringsperioderUtenToken() = setUpTestApplication {
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -34,53 +80,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testMeldekort() = setUpTestApplication {
-        val personString = """
-            {
-                "personId": 5134902,
-                "etternavn": "AGURKTID",
-                "fornavn": "KONSEKVENT",
-                "maalformkode": "NO",
-                "meldeform": "EMELD",
-                "meldekortListe": [
-                    {
-                        "meldekortId": 1234567890,
-                        "kortType": "05",
-                        "meldeperiode": "202415",
-                        "fraDato": "2024-04-08",
-                        "tilDato": "2024-04-21",
-                        "hoyesteMeldegruppe": "ARBS",
-                        "beregningstatus": "OPPRE",
-                        "forskudd": false,
-                        "bruttoBelop": 0.0
-                    },
-                    {
-                        "meldekortId": 1234567891,
-                        "kortType": "09",
-                        "meldeperiode": "202417",
-                        "fraDato": "2024-04-22",
-                        "tilDato": "2024-05-05",
-                        "hoyesteMeldegruppe": "AAP",
-                        "beregningstatus": "OPPRE",
-                        "forskudd": false,
-                        "bruttoBelop": 0.0
-                    },
-                    {
-                        "meldekortId": 1234567892,
-                        "kortType": "10",
-                        "meldeperiode": "202419",
-                        "fraDato": "2024-05-06",
-                        "tilDato": "2024-05-19",
-                        "hoyesteMeldegruppe": "ARBS",
-                        "beregningstatus": "FERDI",
-                        "forskudd": false,
-                        "bruttoBelop": 0.0
-                    }
-                ],
-                "fravaerListe": []
-            }
-        """.trimIndent()
-
+    fun testRapporteringsperiode() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -121,7 +121,49 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testMeldekortdetaljerUtenToken() = setUpTestApplication {
+    fun testHistoriskeRapporteringsperiodertUtenToken() = setUpTestApplication {
+        val response = client.get("/historiskerapporteringsperioder") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testHistoriskeRapporteringsperiodert() = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/historiskemeldekort") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(personString)
+                    }
+                }
+            }
+        }
+
+        val ident = "01020312345"
+        val token = mockOAuth2Server.issueToken(
+            TOKENX_ISSUER_ID,
+            "myclient",
+            DefaultOAuth2TokenCallback(
+                audience = listOf(REQUIRED_AUDIENCE),
+                claims = mapOf("pid" to ident)
+            )
+        ).serialize()
+
+        val response = client.get("/historiskerapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun testAktivitetsdagerUtenToken() = setUpTestApplication {
         val response = client.get("/aktivitetsdager/1234567890") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -131,7 +173,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testMeldekortdetaljer() = setUpTestApplication {
+    fun testAktivitetsdager() = setUpTestApplication {
         val meldekortserviceResponse = """
             {
                 "id": "",
