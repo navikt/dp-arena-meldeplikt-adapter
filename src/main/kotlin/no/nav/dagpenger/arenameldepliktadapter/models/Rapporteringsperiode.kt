@@ -6,7 +6,6 @@ import java.util.*
 data class Rapporteringsperiode(
     val id: Long, // meldekortId
     val periode: Periode,
-    val dager: List<Dag>,
     val kanSendesFra: LocalDate,
     val kanSendes: Boolean,
     val kanKorrigeres: Boolean

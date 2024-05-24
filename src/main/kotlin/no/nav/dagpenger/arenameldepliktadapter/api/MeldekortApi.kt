@@ -64,7 +64,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             meldekort.fraDato,
                             meldekort.tilDato
                         ),
-                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), emptyList()) },
                         kanSendesFra,
                         !LocalDate.now().isBefore(kanSendesFra),
                         kanKorrigeres(meldekort, person.meldekortListe)
