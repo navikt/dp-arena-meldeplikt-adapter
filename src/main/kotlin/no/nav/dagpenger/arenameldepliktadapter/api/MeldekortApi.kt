@@ -77,7 +77,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
-        route("/historiskerapporteringsperioder") {
+        route("/sendterapporteringsperioder") {
             get {
                 val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
                 val ident = extractSubject(decodedToken)
@@ -109,7 +109,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             meldekort.tilDato
                         ),
                         kanSendesFra,
-                        !LocalDate.now().isBefore(kanSendesFra),
+                        false,
                         kanKorrigeres(meldekort, person.meldekortListe)
                     )
                 }

@@ -121,8 +121,8 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testHistoriskeRapporteringsperiodertUtenToken() = setUpTestApplication {
-        val response = client.get("/historiskerapporteringsperioder") {
+    fun testSendteRapporteringsperiodertUtenToken() = setUpTestApplication {
+        val response = client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -131,7 +131,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testHistoriskeRapporteringsperiodert() = setUpTestApplication {
+    fun testSendteRapporteringsperiodert() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -153,7 +153,7 @@ class MeldekortApiTest : TestBase() {
             )
         ).serialize()
 
-        val response = client.get("/historiskerapporteringsperioder") {
+        val response = client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
