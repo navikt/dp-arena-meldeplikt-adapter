@@ -18,8 +18,10 @@ import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
+import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
+import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
@@ -29,11 +31,15 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.IsoFields
+import java.time.temporal.TemporalAdjusters
+import java.util.*
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
-        route("/meldekort") {
+        route("/rapporteringsperioder") {
             get {
                 val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
                 val ident = extractSubject(decodedToken)
@@ -44,7 +50,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                 }
 
                 val response = sendHttpRequestWithRetry(httpClient, ident, "/v2/meldekort")
-                val person: Person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+                val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                 val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                     meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
@@ -72,7 +78,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
-        route("/meldekortdetaljer/{meldekortId}") {
+        route("/aktivitetsdager/{meldekortId}") {
             get {
                 val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
                 val ident = extractSubject(decodedToken)
@@ -93,9 +99,58 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     ident,
                     "/v2/meldekortdetaljer?meldekortId=$meldekortId"
                 )
+                val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(response.bodyAsText())
+
+                val year = meldekortdetaljer.meldeperiode.substring(0, 4).toInt()
+                val week = meldekortdetaljer.meldeperiode.substring(4).toLong()
+
+                val fom = LocalDate.now()
+                    .withYear(year)
+                    .with(IsoFields.WEEK_OF_WEEK_BASED_YEAR, week)
+                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+                val aktivitetsdager = List(14) { index -> Dag(fom.plusDays(index.toLong()), mutableListOf()) }
+                meldekortdetaljer.sporsmal?.meldekortDager?.forEach { dag ->
+                    if (dag.arbeidetTimerSum != null && dag.arbeidetTimerSum > 0) {
+                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                            Aktivitet(
+                                UUID.randomUUID(),
+                                Aktivitet.AktivitetsType.Arbeid,
+                                dag.arbeidetTimerSum.toString()
+                            )
+                        )
+                    }
+                    if (dag.syk == true) {
+                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                            Aktivitet(
+                                UUID.randomUUID(),
+                                Aktivitet.AktivitetsType.Syk,
+                                null
+                            )
+                        )
+                    }
+                    if (dag.kurs == true) {
+                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                            Aktivitet(
+                                UUID.randomUUID(),
+                                Aktivitet.AktivitetsType.Utdanning,
+                                null
+                            )
+                        )
+                    }
+                    if (dag.annetFravaer == true) {
+                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                            Aktivitet(
+                                UUID.randomUUID(),
+                                Aktivitet.AktivitetsType.Fravaer,
+                                null
+                            )
+                        )
+                    }
+                }
 
                 call.respondText(
-                    response.bodyAsText(),
+                    defaultObjectMapper.writeValueAsString(aktivitetsdager),
                     ContentType.Application.Json
                 )
             }

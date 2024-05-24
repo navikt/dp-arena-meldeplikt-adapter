@@ -1,6 +1,7 @@
 package no.nav.dagpenger.arenameldepliktadapter.models
 
 import java.time.LocalDate
+import java.util.*
 
 data class Rapporteringsperiode(
     val id: Long, // meldekortId
@@ -22,8 +23,9 @@ class Dag(
 )
 
 data class Aktivitet(
+    val uuid: UUID,
     val type: AktivitetsType,
-    val timer: String
+    val timer: String?
 ) {
     enum class AktivitetsType {
         Arbeid,

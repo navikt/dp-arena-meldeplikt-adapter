@@ -12,6 +12,8 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
@@ -21,7 +23,19 @@ import kotlin.test.assertEquals
 
 class MeldekortApiTest : TestBase() {
 
-    private val personString = """
+    @Test
+    fun testMeldekortUtenToken() = setUpTestApplication {
+        val response = client.get("/rapporteringsperioder") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testMeldekort() = setUpTestApplication {
+        val personString = """
             {
                 "personId": 5134902,
                 "etternavn": "AGURKTID",
@@ -64,21 +78,9 @@ class MeldekortApiTest : TestBase() {
                     }
                 ],
                 "fravaerListe": []
-                }
-                """.trimIndent()
+            }
+        """.trimIndent()
 
-    @Test
-    fun testMeldekortUtenToken() = setUpTestApplication {
-        val response = client.get("/meldekort") {
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-        }
-
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
-    }
-
-    @Test
-    fun testMeldekort() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -100,7 +102,7 @@ class MeldekortApiTest : TestBase() {
             )
         ).serialize()
 
-        val response = client.get("/meldekort") {
+        val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -125,7 +127,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testMeldekortdetaljerUtenToken() = setUpTestApplication {
-        val response = client.get("/meldekortdetaljer/1234567890") {
+        val response = client.get("/aktivitetsdager/1234567890") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -135,7 +137,64 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testMeldekortdetaljer() = setUpTestApplication {
-        val meldekortserviceResponse = "Svar fra Meldekortservice"
+        val meldekortserviceResponse = """
+            {
+                "id": "",
+                "personId": "",
+                "fodselsnr": "",
+                "meldekortId": "",
+                "meldeperiode": "202421",
+                "meldegruppe": "",
+                "arkivnokkel": "",
+                "kortType": "",
+                "sporsmal": {
+                    "meldekortDager": [
+                        {
+                            "dag": 2,
+                            "arbeidetTimerSum": 7.5,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 3,
+                            "arbeidetTimerSum": 0,
+                            "syk": true,
+                            "annetFravaer": false,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 4,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": true,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 5,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": true
+                        },
+                        {
+                            "dag": 6,
+                            "arbeidetTimerSum": 8,
+                            "syk": true,
+                            "annetFravaer": true,
+                            "kurs": true
+                        },
+                        {
+                            "dag": 14,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": false
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
 
         externalServices {
             hosts("https://meldekortservice") {
@@ -158,14 +217,53 @@ class MeldekortApiTest : TestBase() {
             )
         ).serialize()
 
-        val response = client.get("/meldekortdetaljer/1234567890") {
+        val response = client.get("/aktivitetsdager/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
 
+        val aktivitetsdager = defaultObjectMapper.readValue<List<Dag>>(response.bodyAsText())
+
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(meldekortserviceResponse, response.bodyAsText())
+        assertEquals(14, aktivitetsdager.size)
+
+        assertEquals(LocalDate.parse("2024-05-20"), aktivitetsdager[0].dato)
+        assertEquals(0, aktivitetsdager[0].aktiviteter.size)
+
+        assertEquals(LocalDate.parse("2024-05-21"), aktivitetsdager[1].dato)
+        assertEquals(1, aktivitetsdager[1].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[1].aktiviteter[0].type)
+        assertEquals("7.5", aktivitetsdager[1].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-05-22"), aktivitetsdager[2].dato)
+        assertEquals(1, aktivitetsdager[2].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[2].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[2].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-05-23"), aktivitetsdager[3].dato)
+        assertEquals(1, aktivitetsdager[3].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-05-24"), aktivitetsdager[4].dato)
+        assertEquals(1, aktivitetsdager[4].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[4].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[4].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-05-25"), aktivitetsdager[5].dato)
+        assertEquals(4, aktivitetsdager[5].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[5].aktiviteter[0].type)
+        assertEquals("8.0", aktivitetsdager[5].aktiviteter[0].timer)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[5].aktiviteter[1].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
+
+        assertEquals(LocalDate.parse("2024-06-02"), aktivitetsdager[13].dato)
+        assertEquals(0, aktivitetsdager[13].aktiviteter.size)
     }
 
     @Test
