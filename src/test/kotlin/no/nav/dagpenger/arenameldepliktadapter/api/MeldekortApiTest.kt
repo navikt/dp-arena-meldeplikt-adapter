@@ -15,6 +15,7 @@ import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
 import java.time.LocalDate
@@ -115,13 +116,20 @@ class MeldekortApiTest : TestBase() {
         assertEquals(1234567890, rapporteringsperioder[0].id)
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
+        assertEquals(14, rapporteringsperioder[0].dager.size)
+        assertEquals(0, rapporteringsperioder[0].dager[0].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].dager[0].dato)
+        assertEquals(13, rapporteringsperioder[0].dager[13].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
         assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
         assertEquals(true, rapporteringsperioder[0].kanSendes)
         assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
+        assertEquals(null, rapporteringsperioder[0].bruttoBelop)
+        assertEquals(RapporteringsperiodeStatus.TilUtfylling, rapporteringsperioder[0].status)
     }
 
     @Test
-    fun testSendteRapporteringsperiodertUtenToken() = setUpTestApplication {
+    fun testSendteRapporteringsperioderUtenToken() = setUpTestApplication {
         val response = client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -131,7 +139,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testSendteRapporteringsperiodert() = setUpTestApplication {
+    fun testSendteRapporteringsperioder() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -160,6 +168,24 @@ class MeldekortApiTest : TestBase() {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
+
+        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        assertEquals(2, rapporteringsperioder.size)
+        assertEquals(1234567890, rapporteringsperioder[0].id)
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
+        assertEquals(14, rapporteringsperioder[0].dager.size)
+        assertEquals(0, rapporteringsperioder[0].dager[0].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].dager[0].dato)
+        assertEquals(13, rapporteringsperioder[0].dager[13].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
+        assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
+        assertEquals(false, rapporteringsperioder[0].kanSendes)
+        assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
+        assertEquals("0.0", rapporteringsperioder[0].bruttoBelop)
+        assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
+
+        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[1].status)
     }
 
     @Test
@@ -280,7 +306,7 @@ class MeldekortApiTest : TestBase() {
 
         assertEquals(LocalDate.parse("2024-05-23"), aktivitetsdager[3].dato)
         assertEquals(1, aktivitetsdager[3].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
+        assertEquals(Aktivitet.AktivitetsType.FerieEllerFravaer, aktivitetsdager[3].aktiviteter[0].type)
         assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
 
         assertEquals(LocalDate.parse("2024-05-24"), aktivitetsdager[4].dato)
@@ -296,7 +322,7 @@ class MeldekortApiTest : TestBase() {
         assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
         assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
         assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
-        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
+        assertEquals(Aktivitet.AktivitetsType.FerieEllerFravaer, aktivitetsdager[5].aktiviteter[3].type)
         assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
 
         assertEquals(LocalDate.parse("2024-06-02"), aktivitetsdager[13].dato)

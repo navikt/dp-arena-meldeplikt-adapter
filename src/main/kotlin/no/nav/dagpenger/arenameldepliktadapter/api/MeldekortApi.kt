@@ -25,6 +25,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
@@ -64,9 +65,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             meldekort.fraDato,
                             meldekort.tilDato
                         ),
+                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), mutableListOf(), index) },
                         kanSendesFra,
                         !LocalDate.now().isBefore(kanSendesFra),
-                        kanKorrigeres(meldekort, person.meldekortListe)
+                        kanKorrigeres(meldekort, person.meldekortListe),
+                        null,
+                        RapporteringsperiodeStatus.TilUtfylling
                     )
                 } ?: emptyList()
 
@@ -108,9 +112,13 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             meldekort.fraDato,
                             meldekort.tilDato
                         ),
+                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), mutableListOf(), index) },
                         kanSendesFra,
                         false,
-                        kanKorrigeres(meldekort, person.meldekortListe)
+                        kanKorrigeres(meldekort, person.meldekortListe),
+                        meldekort.bruttoBelop.toString(),
+                        if (meldekort.beregningstatus in arrayOf("FERDI", "IKKE", "OVERM")) RapporteringsperiodeStatus.Ferdig
+                        else RapporteringsperiodeStatus.Innsendt
                     )
                 }
 
@@ -152,7 +160,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     .with(IsoFields.WEEK_OF_WEEK_BASED_YEAR, week)
                     .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
-                val aktivitetsdager = List(14) { index -> Dag(fom.plusDays(index.toLong()), mutableListOf()) }
+                val aktivitetsdager = List(14) { index -> Dag(fom.plusDays(index.toLong()), mutableListOf(), index) }
                 meldekortdetaljer.sporsmal?.meldekortDager?.forEach { dag ->
                     if (dag.arbeidetTimerSum != null && dag.arbeidetTimerSum > 0) {
                         (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
@@ -185,7 +193,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                             Aktivitet(
                                 UUID.randomUUID(),
-                                Aktivitet.AktivitetsType.Fravaer,
+                                Aktivitet.AktivitetsType.FerieEllerFravaer,
                                 null
                             )
                         )

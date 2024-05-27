@@ -6,9 +6,12 @@ import java.util.*
 data class Rapporteringsperiode(
     val id: Long, // meldekortId
     val periode: Periode,
+    val dager: List<Dag>,
     val kanSendesFra: LocalDate,
     val kanSendes: Boolean,
-    val kanKorrigeres: Boolean
+    val kanKorrigeres: Boolean,
+    val bruttoBelop: String?,
+    val status: RapporteringsperiodeStatus
 )
 
 data class Periode(
@@ -16,9 +19,16 @@ data class Periode(
     val tilOgMed: LocalDate
 )
 
+enum class RapporteringsperiodeStatus {
+    TilUtfylling,
+    Innsendt,
+    Ferdig
+}
+
 class Dag(
     val dato: LocalDate,
-    val aktiviteter: List<Aktivitet> = emptyList()
+    val aktiviteter: List<Aktivitet> = emptyList(),
+    val dagIndex: Int
 )
 
 data class Aktivitet(
@@ -30,6 +40,6 @@ data class Aktivitet(
         Arbeid,
         Syk,
         Utdanning,
-        Fravaer
+        FerieEllerFravaer
     }
 }
