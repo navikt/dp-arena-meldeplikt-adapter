@@ -229,8 +229,8 @@ private suspend fun sendHttpRequestWithRetry(httpClient: HttpClient, authString:
 }
 
 private suspend fun sendHttpRequest(httpClient: HttpClient, authString: String, path: String): HttpResponse {
-    val inncomingToken = authString.replace("Bearer ", "")
-    val tokenProvider = tokenExchanger(inncomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
+    val incomingToken = authString.replace("Bearer ", "")
+    val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
 
     val decodedToken = decodeToken(authString)
     val ident = extractSubject(decodedToken)
