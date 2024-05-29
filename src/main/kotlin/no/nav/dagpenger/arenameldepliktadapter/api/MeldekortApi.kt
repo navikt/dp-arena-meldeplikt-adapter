@@ -32,10 +32,7 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.IsoFields
-import java.time.temporal.TemporalAdjusters
 import java.util.*
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
@@ -93,13 +90,24 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                 }?.map { meldekort ->
                     val kanSendesFra = meldekort.tilDato.minusDays(1)
 
+                    val responseDetaljer = sendHttpRequestWithRetry(
+                        httpClient,
+                        authString,
+                        "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                    )
+                    val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
+                        responseDetaljer.bodyAsText()
+                    )
+
+                    val aktivitetsdager = mapAktivitetsdager(meldekort.fraDato, meldekortdetaljer)
+
                     Rapporteringsperiode(
                         meldekort.meldekortId,
                         Periode(
                             meldekort.fraDato,
                             meldekort.tilDato
                         ),
-                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), mutableListOf(), index) },
+                        aktivitetsdager,
                         kanSendesFra,
                         false,
                         kanKorrigeres(meldekort, person.meldekortListe),
@@ -110,84 +118,13 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             )
                         ) RapporteringsperiodeStatus.Ferdig
                         else RapporteringsperiodeStatus.Innsendt,
-                        meldekort.bruttoBelop.toDouble()
+                        meldekort.bruttoBelop.toDouble(),
+                        meldekortdetaljer.sporsmal?.arbeidssoker
                     )
                 }
 
                 call.respondText(
                     defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                    ContentType.Application.Json
-                )
-            }
-        }
-
-        route("/aktivitetsdager/{meldekortId}") {
-            get {
-                val authString = call.request.header(HttpHeaders.Authorization)!!
-
-                val meldekortId = call.parameters["meldekortId"]
-                if (meldekortId.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@get
-                }
-
-                val response = sendHttpRequestWithRetry(
-                    httpClient,
-                    authString,
-                    "/v2/meldekortdetaljer?meldekortId=$meldekortId"
-                )
-                val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(response.bodyAsText())
-
-                val year = meldekortdetaljer.meldeperiode.substring(0, 4).toInt()
-                val week = meldekortdetaljer.meldeperiode.substring(4).toLong()
-
-                val fom = LocalDate.now()
-                    .withYear(year)
-                    .with(IsoFields.WEEK_OF_WEEK_BASED_YEAR, week)
-                    .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
-                val aktivitetsdager = List(14) { index -> Dag(fom.plusDays(index.toLong()), mutableListOf(), index) }
-                meldekortdetaljer.sporsmal?.meldekortDager?.forEach { dag ->
-                    if (dag.arbeidetTimerSum != null && dag.arbeidetTimerSum > 0) {
-                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
-                            Aktivitet(
-                                UUID.randomUUID(),
-                                Aktivitet.AktivitetsType.Arbeid,
-                                dag.arbeidetTimerSum.toString()
-                            )
-                        )
-                    }
-                    if (dag.syk == true) {
-                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
-                            Aktivitet(
-                                UUID.randomUUID(),
-                                Aktivitet.AktivitetsType.Syk,
-                                null
-                            )
-                        )
-                    }
-                    if (dag.kurs == true) {
-                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
-                            Aktivitet(
-                                UUID.randomUUID(),
-                                Aktivitet.AktivitetsType.Utdanning,
-                                null
-                            )
-                        )
-                    }
-                    if (dag.annetFravaer == true) {
-                        (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
-                            Aktivitet(
-                                UUID.randomUUID(),
-                                Aktivitet.AktivitetsType.FerieEllerFravaer,
-                                null
-                            )
-                        )
-                    }
-                }
-
-                call.respondText(
-                    defaultObjectMapper.writeValueAsString(aktivitetsdager),
                     ContentType.Application.Json
                 )
             }
@@ -247,6 +184,52 @@ private fun kanKorrigeres(meldekort: Meldekort, meldekortListe: List<Meldekort>)
     } else {
         meldekortListe.find { mk -> (meldekort.meldekortId != mk.meldekortId && meldekort.meldeperiode == mk.meldeperiode && mk.kortType == "10") } == null
     }
+}
+
+private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetaljer): List<Dag> {
+    val aktivitetsdager = List(14) { index ->
+        Dag(fom.plusDays(index.toLong()), mutableListOf(), index)
+    }
+    meldekortdetaljer.sporsmal?.meldekortDager?.forEach { dag ->
+        if (dag.arbeidetTimerSum != null && dag.arbeidetTimerSum > 0) {
+            (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUID.randomUUID(),
+                    Aktivitet.AktivitetsType.Arbeid,
+                    dag.arbeidetTimerSum.toString()
+                )
+            )
+        }
+        if (dag.syk == true) {
+            (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUID.randomUUID(),
+                    Aktivitet.AktivitetsType.Syk,
+                    null
+                )
+            )
+        }
+        if (dag.kurs == true) {
+            (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUID.randomUUID(),
+                    Aktivitet.AktivitetsType.Utdanning,
+                    null
+                )
+            )
+        }
+        if (dag.annetFravaer == true) {
+            (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUID.randomUUID(),
+                    Aktivitet.AktivitetsType.FerieEllerFravaer,
+                    null
+                )
+            )
+        }
+    }
+
+    return aktivitetsdager
 }
 
 private fun tokenExchanger(token: String, audience: String): () -> String = {
