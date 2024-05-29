@@ -124,8 +124,9 @@ class MeldekortApiTest : TestBase() {
         assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
         assertEquals(true, rapporteringsperioder[0].kanSendes)
         assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
-        assertEquals(null, rapporteringsperioder[0].bruttoBelop)
         assertEquals(RapporteringsperiodeStatus.TilUtfylling, rapporteringsperioder[0].status)
+        assertEquals(null, rapporteringsperioder[0].bruttoBelop)
+        assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
     }
 
     @Test
@@ -182,8 +183,9 @@ class MeldekortApiTest : TestBase() {
         assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
         assertEquals(false, rapporteringsperioder[0].kanSendes)
         assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
-        assertEquals("0.0", rapporteringsperioder[0].bruttoBelop)
         assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
+        assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
+        assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
 
         assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[1].status)
     }

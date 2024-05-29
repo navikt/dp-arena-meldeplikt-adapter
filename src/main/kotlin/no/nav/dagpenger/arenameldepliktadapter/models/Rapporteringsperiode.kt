@@ -10,8 +10,9 @@ data class Rapporteringsperiode(
     val kanSendesFra: LocalDate,
     val kanSendes: Boolean,
     val kanKorrigeres: Boolean,
-    val bruttoBelop: String?,
-    val status: RapporteringsperiodeStatus
+    val status: RapporteringsperiodeStatus,
+    val bruttoBelop: Double? = null,
+    val registrertArbeidssoker: Boolean? = null
 )
 
 data class Periode(

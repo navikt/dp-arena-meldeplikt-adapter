@@ -63,7 +63,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         kanSendesFra,
                         !LocalDate.now().isBefore(kanSendesFra),
                         kanKorrigeres(meldekort, person.meldekortListe),
-                        null,
                         RapporteringsperiodeStatus.TilUtfylling
                     )
                 } ?: emptyList()
@@ -104,14 +103,14 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         kanSendesFra,
                         false,
                         kanKorrigeres(meldekort, person.meldekortListe),
-                        meldekort.bruttoBelop.toString(),
                         if (meldekort.beregningstatus in arrayOf(
                                 "FERDI",
                                 "IKKE",
                                 "OVERM"
                             )
                         ) RapporteringsperiodeStatus.Ferdig
-                        else RapporteringsperiodeStatus.Innsendt
+                        else RapporteringsperiodeStatus.Innsendt,
+                        meldekort.bruttoBelop.toDouble()
                     )
                 }
 
