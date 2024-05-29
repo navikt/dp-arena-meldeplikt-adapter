@@ -42,15 +42,9 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
         route("/rapporteringsperioder") {
             get {
-                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
-                val ident = extractSubject(decodedToken)
+                val authString = call.request.header(HttpHeaders.Authorization)!!
 
-                if (ident.isNullOrBlank() || ident.length != 11) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
-                }
-
-                val response = sendHttpRequestWithRetry(httpClient, ident, "/v2/meldekort")
+                val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
                 val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                 val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
@@ -83,17 +77,11 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
         route("/sendterapporteringsperioder") {
             get {
-                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
-                val ident = extractSubject(decodedToken)
-
-                if (ident.isNullOrBlank() || ident.length != 11) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
-                }
+                val authString = call.request.header(HttpHeaders.Authorization)!!
 
                 val response = sendHttpRequestWithRetry(
                     httpClient,
-                    ident,
+                    authString,
                     "/v2/historiskemeldekort?antallMeldeperioder=5"
                 )
                 val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
@@ -117,7 +105,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         false,
                         kanKorrigeres(meldekort, person.meldekortListe),
                         meldekort.bruttoBelop.toString(),
-                        if (meldekort.beregningstatus in arrayOf("FERDI", "IKKE", "OVERM")) RapporteringsperiodeStatus.Ferdig
+                        if (meldekort.beregningstatus in arrayOf(
+                                "FERDI",
+                                "IKKE",
+                                "OVERM"
+                            )
+                        ) RapporteringsperiodeStatus.Ferdig
                         else RapporteringsperiodeStatus.Innsendt
                     )
                 }
@@ -131,13 +124,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
         route("/aktivitetsdager/{meldekortId}") {
             get {
-                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
-                val ident = extractSubject(decodedToken)
-
-                if (ident.isNullOrBlank() || ident.length != 11) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
-                }
+                val authString = call.request.header(HttpHeaders.Authorization)!!
 
                 val meldekortId = call.parameters["meldekortId"]
                 if (meldekortId.isNullOrBlank()) {
@@ -147,7 +134,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                 val response = sendHttpRequestWithRetry(
                     httpClient,
-                    ident,
+                    authString,
                     "/v2/meldekortdetaljer?meldekortId=$meldekortId"
                 )
                 val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(response.bodyAsText())
@@ -209,13 +196,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
         route("/korrigertMeldekort/{meldekortId}") {
             get {
-                val decodedToken = decodeToken(call.request.header(HttpHeaders.Authorization))
-                val ident = extractSubject(decodedToken)
-
-                if (ident.isNullOrBlank() || ident.length != 11) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
-                }
+                val authString = call.request.header(HttpHeaders.Authorization)!!
 
                 val meldekortId = call.parameters["meldekortId"]
                 if (meldekortId.isNullOrBlank()) {
@@ -225,7 +206,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                 val response = sendHttpRequestWithRetry(
                     httpClient,
-                    ident,
+                    authString,
                     "/v2/korrigertMeldekort?meldekortId=$meldekortId"
                 )
 
@@ -235,20 +216,24 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     }
 }
 
-private suspend fun sendHttpRequestWithRetry(httpClient: HttpClient, ident: String, path: String): HttpResponse {
+private suspend fun sendHttpRequestWithRetry(httpClient: HttpClient, authString: String, path: String): HttpResponse {
     var retries = 0
     var response: HttpResponse
 
     do {
-        response = sendHttpRequest(httpClient, ident, path)
+        response = sendHttpRequest(httpClient, authString, path)
         retries++
     } while (response.status != HttpStatusCode.OK && retries < 3)
 
     return response
 }
 
-private suspend fun sendHttpRequest(httpClient: HttpClient, ident: String, path: String): HttpResponse {
-    val tokenProvider = azureAdTokenSupplier(getEnv("MELDEKORTSERVICE_SCOPE") ?: "")
+private suspend fun sendHttpRequest(httpClient: HttpClient, authString: String, path: String): HttpResponse {
+    val inncomingToken = authString.replace("Bearer ", "")
+    val tokenProvider = tokenExchanger(inncomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
+
+    val decodedToken = decodeToken(authString)
+    val ident = extractSubject(decodedToken)
 
     return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
         header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
@@ -265,21 +250,19 @@ private fun kanKorrigeres(meldekort: Meldekort, meldekortListe: List<Meldekort>)
     }
 }
 
-private fun azureAdTokenSupplier(scope: String): () -> String = {
-    runBlocking { azureAdClient.clientCredentials(scope).accessToken }
+private fun tokenExchanger(token: String, audience: String): () -> String = {
+    runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
 }
 
-private val azureAdClient: CachedOauth2Client by lazy {
+private val tokenXClient: CachedOauth2Client by lazy {
     val config = HashMap<String, String>()
-    config["AZURE_APP_CLIENT_ID"] = getEnv("AZURE_APP_CLIENT_ID") ?: ""
-    config["AZURE_APP_CLIENT_SECRET"] = getEnv("AZURE_APP_CLIENT_SECRET") ?: ""
-    config["AZURE_APP_JWK"] = getEnv("AZURE_APP_JWK") ?: ""
-    config["AZURE_OPENID_CONFIG_TOKEN_ENDPOINT"] = getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: ""
-    config["AZURE_APP_WELL_KNOWN_URL"] = getEnv("AZURE_APP_WELL_KNOWN_URL") ?: ""
+    config["TOKEN_X_CLIENT_ID"] = getEnv("TOKEN_X_CLIENT_ID") ?: ""
+    config["TOKEN_X_PRIVATE_JWK"] = getEnv("TOKEN_X_PRIVATE_JWK") ?: ""
+    config["TOKEN_X_WELL_KNOWN_URL"] = getEnv("TOKEN_X_WELL_KNOWN_URL") ?: ""
 
-    val azureAdConfig = OAuth2Config.AzureAd(config)
+    val tokenXConfig = OAuth2Config.TokenX(config)
     CachedOauth2Client(
-        tokenEndpointUrl = azureAdConfig.tokenEndpointUrl,
-        authType = azureAdConfig.clientSecret(),
+        tokenEndpointUrl = tokenXConfig.tokenEndpointUrl,
+        authType = tokenXConfig.privateKey(),
     )
 }

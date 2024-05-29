@@ -33,15 +33,12 @@ spec:
   env:
     - name: MELDEKORTSERVICE_URL
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
-    - name: MELDEKORTSERVICE_SCOPE
-      value: {{ meldekortserviceScope }}
+    - name: MELDEKORTSERVICE_AUDIENCE
+      value: {{ meldekortserviceAudience }}
     - name: TOKEN_X_ACCEPTED_AUDIENCE
       value: {{ tokenxAcceptedAudience }}
   tokenx:
     enabled: true
-  azure:
-    application:
-      enabled: true
   accessPolicy:
     inbound:
       rules:
