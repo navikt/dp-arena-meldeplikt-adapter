@@ -2,7 +2,7 @@ val ktorVersion = "2.3.11"
 val jacksonVersion = "2.17.1"
 val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.5"
-val mockkVersion = "1.13.10"
+val mockkVersion = "1.13.11"
 
 sourceSets {
     this.getByName("main") {
@@ -17,7 +17,7 @@ sourceSets {
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm plugin to add support for Kotlin.
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.0.0"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
