@@ -13,7 +13,11 @@ data class Rapporteringsperiode(
     val status: RapporteringsperiodeStatus,
     val bruttoBelop: Double? = null,
     val registrertArbeidssoker: Boolean? = null
-)
+) {
+    fun finnesDagMedAktivitetsType(aktivitetsType: Aktivitet.AktivitetsType): Boolean {
+        return dager.find { dag -> dag.finnesAktivitetMedType(aktivitetsType) } != null
+    }
+}
 
 data class Periode(
     val fraOgMed: LocalDate,
@@ -30,12 +34,16 @@ class Dag(
     val dato: LocalDate,
     val aktiviteter: List<Aktivitet> = emptyList(),
     val dagIndex: Int
-)
+) {
+    fun finnesAktivitetMedType(aktivitetsType: Aktivitet.AktivitetsType): Boolean {
+        return this.aktiviteter.find { aktivitet -> aktivitet.type == aktivitetsType } != null
+    }
+}
 
 data class Aktivitet(
     val uuid: UUID,
     val type: AktivitetsType,
-    val timer: String?
+    val timer: Double?
 ) {
     enum class AktivitetsType {
         Arbeid,

@@ -196,7 +196,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
                 Aktivitet(
                     UUID.randomUUID(),
                     Aktivitet.AktivitetsType.Arbeid,
-                    dag.arbeidetTimerSum.toString()
+                    dag.arbeidetTimerSum.toDouble()
                 )
             )
         }
