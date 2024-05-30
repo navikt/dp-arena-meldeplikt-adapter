@@ -35,6 +35,10 @@ spec:
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
     - name: MELDEKORTSERVICE_AUDIENCE
       value: {{ meldekortserviceAudience }}
+    - name: MELDEKORTKONTROLL_URL
+      value: 'https://{{ meldekortkontrollHost }}/api/v1/kontroll'
+    - name: MELDEKORTKONTROLL_AUDIENCE
+      value: {{ meldekortkontrollAudience }}
     - name: TOKEN_X_ACCEPTED_AUDIENCE
       value: {{ tokenxAcceptedAudience }}
   tokenx:
@@ -49,3 +53,4 @@ spec:
     outbound:
       external:
         - host: {{ meldekortserviceHost }}
+        - host: {{ meldekortkontrollHost }}
