@@ -39,8 +39,6 @@ spec:
       value: 'https://{{ meldekortkontrollHost }}/api/v1/kontroll'
     - name: MELDEKORTKONTROLL_AUDIENCE
       value: {{ meldekortkontrollAudience }}
-    - name: TOKEN_X_ACCEPTED_AUDIENCE
-      value: {{ tokenxAcceptedAudience }}
   tokenx:
     enabled: true
   accessPolicy:
