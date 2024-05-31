@@ -184,7 +184,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Syk),
                             dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Utdanning),
                             dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.FerieEllerFravaer),
-                            dag.aktiviteter.find { aktivitet -> aktivitet.type == Aktivitet.AktivitetsType.Arbeid }?.timer
+                            dag.hentArbeidstimer()
                         )
                     }
                     call.application.environment.log.info("Meldekortdager: $meldekortdager")
@@ -202,7 +202,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         meldekortdetaljer.meldegruppe,
                         rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.FerieEllerFravaer),
                         rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Arbeid),
-                        rapporteringsperiode.registrertArbeidssoker,
+                        rapporteringsperiode.registrertArbeidssoker!!,
                         rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
                         rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
                         if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,

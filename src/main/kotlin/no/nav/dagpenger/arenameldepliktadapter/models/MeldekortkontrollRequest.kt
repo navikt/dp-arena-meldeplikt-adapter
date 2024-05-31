@@ -8,23 +8,23 @@ class MeldekortkontrollRequest(
     var personId: Long = 0,
     var kilde: String,
     var kortType: String,
-    val meldedato: LocalDate? = null,
-    val periodeFra: LocalDate? = null,
-    val periodeTil: LocalDate? = null,
+    val meldedato: LocalDate,
+    val periodeFra: LocalDate,
+    val periodeTil: LocalDate,
     var meldegruppe: String,
-    var annetFravaer: Boolean? = null,
-    var arbeidet: Boolean? = null,
-    var arbeidssoker: Boolean? = null,
-    var kurs: Boolean? = null,
-    var syk: Boolean? = null,
+    var annetFravaer: Boolean,
+    var arbeidet: Boolean,
+    var arbeidssoker: Boolean,
+    var kurs: Boolean,
+    var syk: Boolean,
     var begrunnelse: String?,
     var meldekortdager: List<MeldekortkontrollFravaer>
 )
 
 data class MeldekortkontrollFravaer(
-    val dato: LocalDate? = null,
-    val syk: Boolean? = null,
-    val kurs: Boolean? = null,
-    val annetFravaer: Boolean? = null,
-    val arbeidTimer: Double? = null
+    val dato: LocalDate,
+    val syk: Boolean,
+    val kurs: Boolean,
+    val annetFravaer: Boolean,
+    val arbeidTimer: Double
 )

@@ -38,6 +38,10 @@ class Dag(
     fun finnesAktivitetMedType(aktivitetsType: Aktivitet.AktivitetsType): Boolean {
         return this.aktiviteter.find { aktivitet -> aktivitet.type == aktivitetsType } != null
     }
+
+    fun hentArbeidstimer(): Double {
+        return this.aktiviteter.find { aktivitet -> aktivitet.type == Aktivitet.AktivitetsType.Arbeid }?.timer ?: 0.0
+    }
 }
 
 data class Aktivitet(
