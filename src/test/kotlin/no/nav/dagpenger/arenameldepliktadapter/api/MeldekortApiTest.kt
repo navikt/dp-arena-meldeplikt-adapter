@@ -3,6 +3,8 @@ package no.nav.dagpenger.arenameldepliktadapter.api
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -11,12 +13,14 @@ import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
-import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -139,7 +143,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testRapporteringsperiode() = setUpTestApplication {
+    fun testRapporteringsperioder() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -151,15 +155,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val ident = "01020312345"
-        val token = mockOAuth2Server.issueToken(
-            TOKENX_ISSUER_ID,
-            "myclient",
-            DefaultOAuth2TokenCallback(
-                audience = listOf(REQUIRED_AUDIENCE),
-                claims = mapOf("pid" to ident)
-            )
-        ).serialize()
+        val token = issueToken("01020312345")
 
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -214,15 +210,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val ident = "01020312345"
-        val token = mockOAuth2Server.issueToken(
-            TOKENX_ISSUER_ID,
-            "myclient",
-            DefaultOAuth2TokenCallback(
-                audience = listOf(REQUIRED_AUDIENCE),
-                claims = mapOf("pid" to ident)
-            )
-        ).serialize()
+        val token = issueToken("01020312345")
 
         val response = client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -320,15 +308,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val ident = "01020312345"
-        val token = mockOAuth2Server.issueToken(
-            TOKENX_ISSUER_ID,
-            "myclient",
-            DefaultOAuth2TokenCallback(
-                audience = listOf(REQUIRED_AUDIENCE),
-                claims = mapOf("pid" to ident)
-            )
-        ).serialize()
+        val token = issueToken("01020312345")
 
         val response = client.get("/korrigertMeldekort/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -338,5 +318,72 @@ class MeldekortApiTest : TestBase() {
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(meldekortserviceResponse, response.bodyAsText())
+    }
+
+    @Test
+    fun testSendInnRapporteringsperiodeUtenToken() = setUpTestApplication {
+        val response = client.post("/sendinn") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testSendInnRapporteringsperiode() = setUpTestApplication {
+        val id = 1234567890L
+        val rapporteringsperiode = Rapporteringsperiode(
+            id,
+            Periode(
+                LocalDate.now(),
+                LocalDate.now()
+            ),
+            emptyList(),
+            LocalDate.now(),
+            true,
+            true,
+            RapporteringsperiodeStatus.TilUtfylling,
+            0.0,
+            true
+        )
+
+        val kontrollResponse = MeldekortkontrollResponse(
+            id,
+            "OK",
+            emptyList(),
+            emptyList()
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldekortdetaljer") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(meldekortdetaljer)
+                    }
+                }
+            }
+            hosts("https://meldekortkontroll-api") {
+                routing {
+                    post("") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(kontrollResponse))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.post("/sendinn") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(defaultObjectMapper.writeValueAsString(rapporteringsperiode))
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(defaultObjectMapper.writeValueAsString(kontrollResponse), response.bodyAsText())
     }
 }

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -12,16 +14,21 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.header
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollFravaer
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
@@ -147,6 +154,74 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                 )
 
                 call.respondText(response.bodyAsText())
+            }
+        }
+
+        route("/sendinn") {
+            post {
+                val authString = call.request.header(HttpHeaders.Authorization)!!
+
+                val rapporteringsperiode = defaultObjectMapper.readValue<Rapporteringsperiode>(call.receiveText())
+
+                // Henter meldekortdetaljer og meldekortservice sjekker at ident stemmer med FNR i dette meldekortet
+                val responseDetaljer = sendHttpRequestWithRetry(
+                    httpClient,
+                    authString,
+                    "/v2/meldekortdetaljer?meldekortId=${rapporteringsperiode.id}"
+                )
+                val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
+                    responseDetaljer.bodyAsText()
+                )
+
+                // Mapper meldekortdager
+                val meldekortdager: List<MeldekortkontrollFravaer> = rapporteringsperiode.dager.map { dag ->
+                    MeldekortkontrollFravaer(
+                        dag.dato,
+                        dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Syk),
+                        dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Utdanning),
+                        dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.FerieEllerFravaer),
+                        dag.aktiviteter.find { aktivitet -> aktivitet.type == Aktivitet.AktivitetsType.Arbeid }?.timer
+                    )
+                }
+
+                // Oppretter MeldekortkontrollRequest
+                val meldekortkontrollRequest = MeldekortkontrollRequest(
+                    meldekortdetaljer.meldekortId,
+                    meldekortdetaljer.fodselsnr,
+                    meldekortdetaljer.personId,
+                    "DP",
+                    meldekortdetaljer.kortType,
+                    if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK" && meldekortdetaljer.meldeDato != null) meldekortdetaljer.meldeDato else LocalDate.now(),
+                    rapporteringsperiode.periode.fraOgMed,
+                    rapporteringsperiode.periode.tilOgMed,
+                    meldekortdetaljer.meldegruppe,
+                    rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.FerieEllerFravaer),
+                    rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Arbeid),
+                    rapporteringsperiode.registrertArbeidssoker,
+                    rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
+                    rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
+                    if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,
+                    meldekortdager
+                )
+
+                // Henter TokenX
+                val incomingToken = authString.replace("Bearer ", "")
+                val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
+
+                // Request til meldekortkontroll-api
+                val response = httpClient.post(getEnv("MELDEKORTKONTROLL_URL")!!) {
+                    header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+                    header(HttpHeaders.Accept, ContentType.Application.Json)
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
+                }
+
+                // Returnerer response fra meldekortkontroll-api
+                call.response.status(HttpStatusCode.OK)
+                call.respondText(
+                    response.bodyAsText(),
+                    ContentType.Application.Json
+                )
             }
         }
     }

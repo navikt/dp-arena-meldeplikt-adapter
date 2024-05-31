@@ -8,6 +8,7 @@ import io.mockk.mockkStatic
 import no.nav.dagpenger.arenameldepliktadapter.main
 import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
 import no.nav.security.mock.oauth2.MockOAuth2Server
+import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
@@ -68,6 +69,7 @@ open class TestBase {
 
     private fun setOidcConfig(): MapApplicationConfig {
         System.setProperty("MELDEKORTSERVICE_URL", "https://meldekortservice")
+        System.setProperty("MELDEKORTKONTROLL_URL", "https://meldekortkontroll-api")
         System.setProperty("TOKEN_X_CLIENT_ID", TOKENX_ISSUER_ID)
         System.setProperty("TOKEN_X_PRIVATE_JWK", TEST_PRIVATE_JWK)
         System.setProperty("TOKEN_X_WELL_KNOWN_URL", mockOAuth2Server.wellKnownUrl(TOKENX_ISSUER_ID).toString())
@@ -79,5 +81,16 @@ open class TestBase {
             "no.nav.security.jwt.issuers.0.accepted_audience" to REQUIRED_AUDIENCE,
             "ktor.environment" to "local"
         )
+    }
+
+    fun issueToken(ident: String): String {
+        return mockOAuth2Server.issueToken(
+            TOKENX_ISSUER_ID,
+            "myclient",
+            DefaultOAuth2TokenCallback(
+                audience = listOf(REQUIRED_AUDIENCE),
+                claims = mapOf("pid" to ident)
+            )
+        ).serialize()
     }
 }
