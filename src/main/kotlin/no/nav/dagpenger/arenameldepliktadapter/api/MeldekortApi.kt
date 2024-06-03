@@ -24,10 +24,13 @@ import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
+import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
+import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollFravaer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
@@ -222,10 +225,20 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
                     }
 
+                    val meldekortkontrollResponse = defaultObjectMapper.readValue<MeldekortkontrollResponse>(
+                        response.bodyAsText()
+                    )
+
+                    val innsendingResponse = InnsendingResponse(
+                        meldekortkontrollResponse.meldekortId,
+                        if (meldekortkontrollResponse.kontrollStatus in arrayOf("OK", "OKOPP")) "OK" else "FEIL",
+                        meldekortkontrollResponse.feilListe.map { feil -> InnsendingFeil(feil.kode, feil.params) }
+                    )
+
                     // Returnerer response fra meldekortkontroll-api
                     call.response.status(HttpStatusCode.OK)
                     call.respondText(
-                        response.bodyAsText(),
+                        defaultObjectMapper.writeValueAsString(innsendingResponse),
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {

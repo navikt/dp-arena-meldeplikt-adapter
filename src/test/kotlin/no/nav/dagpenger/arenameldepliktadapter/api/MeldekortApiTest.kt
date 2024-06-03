@@ -16,6 +16,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
@@ -383,7 +384,11 @@ class MeldekortApiTest : TestBase() {
             setBody(defaultObjectMapper.writeValueAsString(rapporteringsperiode))
         }
 
+        val innsendingResponse = defaultObjectMapper.readValue<InnsendingResponse>(response.bodyAsText())
+
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(defaultObjectMapper.writeValueAsString(kontrollResponse), response.bodyAsText())
+        assertEquals(id, innsendingResponse.id)
+        assertEquals("OK", innsendingResponse.status)
+        assertEquals(emptyList(), innsendingResponse.feil)
     }
 }

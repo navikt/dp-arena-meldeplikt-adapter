@@ -8,8 +8,6 @@ data class MeldekortkontrollResponse(
 )
 
 data class MeldekortkontrollFeil(
-    var kode: String? = null,
-    var tekst: String? = null,
-    var dag: Int? = null,
-    var params: Array<String>? = null
+    var kode: String,
+    var params: List<String>? = null
 )
