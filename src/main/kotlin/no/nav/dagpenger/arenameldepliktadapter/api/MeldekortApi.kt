@@ -48,114 +48,135 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
         route("/rapporteringsperioder") {
             get {
-                val authString = call.request.header(HttpHeaders.Authorization)!!
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)!!
 
-                val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
-                val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+                    val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
+                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
-                val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
-                    meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
-                            && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
-                }?.map { meldekort ->
-                    val kanSendesFra = meldekort.tilDato.minusDays(1)
+                    val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                        meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
+                                && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
+                    }?.map { meldekort ->
+                        val kanSendesFra = meldekort.tilDato.minusDays(1)
 
-                    Rapporteringsperiode(
-                        meldekort.meldekortId,
-                        Periode(
-                            meldekort.fraDato,
-                            meldekort.tilDato
-                        ),
-                        List(14) { index -> Dag(meldekort.fraDato.plusDays(index.toLong()), mutableListOf(), index) },
-                        kanSendesFra,
-                        !LocalDate.now().isBefore(kanSendesFra),
-                        kanKorrigeres(meldekort, person.meldekortListe),
-                        RapporteringsperiodeStatus.TilUtfylling
+                        Rapporteringsperiode(
+                            meldekort.meldekortId,
+                            Periode(
+                                meldekort.fraDato,
+                                meldekort.tilDato
+                            ),
+                            List(14) { index ->
+                                Dag(
+                                    meldekort.fraDato.plusDays(index.toLong()),
+                                    mutableListOf(),
+                                    index
+                                )
+                            },
+                            kanSendesFra,
+                            !LocalDate.now().isBefore(kanSendesFra),
+                            kanKorrigeres(meldekort, person.meldekortListe),
+                            RapporteringsperiodeStatus.TilUtfylling
+                        )
+                    } ?: emptyList()
+
+                    call.respondText(
+                        defaultObjectMapper.writeValueAsString(rapporteringsperioder),
+                        ContentType.Application.Json
                     )
-                } ?: emptyList()
-
-                call.respondText(
-                    defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                    ContentType.Application.Json
-                )
+                } catch (e: Exception) {
+                    call.application.environment.log.error("Feil ved henting av rapporteringsperioder: $e")
+                    call.response.status(HttpStatusCode.InternalServerError)
+                }
             }
         }
 
         route("/sendterapporteringsperioder") {
             get {
-                val authString = call.request.header(HttpHeaders.Authorization)!!
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)!!
 
-                val response = sendHttpRequestWithRetry(
-                    httpClient,
-                    authString,
-                    "/v2/historiskemeldekort?antallMeldeperioder=5"
-                )
-                val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
-
-                val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
-                    meldekort.hoyesteMeldegruppe in arrayOf(
-                        "ARBS",
-                        "DAGP"
-                    )
-                }?.map { meldekort ->
-                    val kanSendesFra = meldekort.tilDato.minusDays(1)
-
-                    val responseDetaljer = sendHttpRequestWithRetry(
+                    val response = sendHttpRequestWithRetry(
                         httpClient,
                         authString,
-                        "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                        "/v2/historiskemeldekort?antallMeldeperioder=5"
                     )
-                    val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
-                        responseDetaljer.bodyAsText()
-                    )
+                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
-                    val aktivitetsdager = mapAktivitetsdager(meldekort.fraDato, meldekortdetaljer)
+                    val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                        meldekort.hoyesteMeldegruppe in arrayOf(
+                            "ARBS",
+                            "DAGP"
+                        )
+                    }?.map { meldekort ->
+                        val kanSendesFra = meldekort.tilDato.minusDays(1)
 
-                    Rapporteringsperiode(
-                        meldekort.meldekortId,
-                        Periode(
-                            meldekort.fraDato,
-                            meldekort.tilDato
-                        ),
-                        aktivitetsdager,
-                        kanSendesFra,
-                        false,
-                        kanKorrigeres(meldekort, person.meldekortListe),
-                        if (meldekort.beregningstatus in arrayOf(
-                                "FERDI",
-                                "IKKE",
-                                "OVERM"
-                            )
-                        ) RapporteringsperiodeStatus.Ferdig
-                        else RapporteringsperiodeStatus.Innsendt,
-                        meldekort.bruttoBelop.toDouble(),
-                        meldekortdetaljer.sporsmal?.arbeidssoker
+                        val responseDetaljer = sendHttpRequestWithRetry(
+                            httpClient,
+                            authString,
+                            "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                        )
+                        val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
+                            responseDetaljer.bodyAsText()
+                        )
+
+                        val aktivitetsdager = mapAktivitetsdager(meldekort.fraDato, meldekortdetaljer)
+
+                        Rapporteringsperiode(
+                            meldekort.meldekortId,
+                            Periode(
+                                meldekort.fraDato,
+                                meldekort.tilDato
+                            ),
+                            aktivitetsdager,
+                            kanSendesFra,
+                            false,
+                            kanKorrigeres(meldekort, person.meldekortListe),
+                            if (meldekort.beregningstatus in arrayOf(
+                                    "FERDI",
+                                    "IKKE",
+                                    "OVERM"
+                                )
+                            ) RapporteringsperiodeStatus.Ferdig
+                            else RapporteringsperiodeStatus.Innsendt,
+                            meldekort.bruttoBelop.toDouble(),
+                            meldekortdetaljer.sporsmal?.arbeidssoker
+                        )
+                    }
+
+                    call.respondText(
+                        defaultObjectMapper.writeValueAsString(rapporteringsperioder),
+                        ContentType.Application.Json
                     )
+                } catch (e: Exception) {
+                    call.application.environment.log.error("Feil ved henting av innsendte rapporteringsperioder: $e")
+                    call.response.status(HttpStatusCode.InternalServerError)
                 }
-
-                call.respondText(
-                    defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                    ContentType.Application.Json
-                )
             }
         }
 
         route("/korrigertMeldekort/{meldekortId}") {
             get {
-                val authString = call.request.header(HttpHeaders.Authorization)!!
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)!!
 
-                val meldekortId = call.parameters["meldekortId"]
-                if (meldekortId.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@get
+                    val meldekortId = call.parameters["meldekortId"]
+                    if (meldekortId.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest)
+                        return@get
+                    }
+
+                    val response = sendHttpRequestWithRetry(
+                        httpClient,
+                        authString,
+                        "/v2/korrigertMeldekort?meldekortId=$meldekortId"
+                    )
+
+                    call.respondText(response.bodyAsText())
+                } catch (e: Exception) {
+                    call.application.environment.log.error("Feil ved henting av korrigert meldekort: $e")
+                    call.response.status(HttpStatusCode.InternalServerError)
                 }
-
-                val response = sendHttpRequestWithRetry(
-                    httpClient,
-                    authString,
-                    "/v2/korrigertMeldekort?meldekortId=$meldekortId"
-                )
-
-                call.respondText(response.bodyAsText())
             }
         }
 
@@ -242,7 +263,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil: $e")
+                    call.application.environment.log.error("Feil ved innsending: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
