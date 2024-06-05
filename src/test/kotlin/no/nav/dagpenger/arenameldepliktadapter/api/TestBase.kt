@@ -1,11 +1,18 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import io.ktor.client.HttpClient
+import io.ktor.serialization.jackson.jackson
 import io.ktor.server.config.MapApplicationConfig
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockkStatic
 import no.nav.dagpenger.arenameldepliktadapter.main
+import no.nav.dagpenger.arenameldepliktadapter.utils.defaultHttpClientConfig
 import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
 import no.nav.security.mock.oauth2.MockOAuth2Server
 import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
@@ -13,6 +20,8 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
 open class TestBase {
+
+    lateinit var testClient: HttpClient
 
     companion object {
 
@@ -55,12 +64,15 @@ open class TestBase {
 
     fun setUpTestApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
         testApplication {
+            testClient = createClient {
+                defaultHttpClientConfig()
+            }
+
             environment {
                 config = setOidcConfig()
             }
-            val testHttpClient = client
             application {
-                main(testHttpClient)
+                main(testClient)
             }
 
             block()

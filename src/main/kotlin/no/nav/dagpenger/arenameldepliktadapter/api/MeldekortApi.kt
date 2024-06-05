@@ -1,7 +1,7 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -14,7 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.header
-import io.ktor.server.request.receiveText
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
@@ -36,7 +36,6 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
-import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
@@ -52,7 +51,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
 
                     val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
-                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+                    val person = response.body<Person>()
 
                     val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                         meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
@@ -80,10 +79,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         )
                     } ?: emptyList()
 
-                    call.respondText(
-                        defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                        ContentType.Application.Json
-                    )
+                    call.respond(rapporteringsperioder)
                 } catch (e: Exception) {
                     call.application.environment.log.error("Feil ved henting av rapporteringsperioder: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
@@ -101,7 +97,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         authString,
                         "/v2/historiskemeldekort?antallMeldeperioder=5"
                     )
-                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+                    val person = response.body<Person>()
 
                     val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                         meldekort.hoyesteMeldegruppe in arrayOf(
@@ -116,9 +112,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             authString,
                             "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
                         )
-                        val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
-                            responseDetaljer.bodyAsText()
-                        )
+                        val meldekortdetaljer = responseDetaljer.body<Meldekortdetaljer>()
 
                         val aktivitetsdager = mapAktivitetsdager(meldekort.fraDato, meldekortdetaljer)
 
@@ -144,10 +138,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         )
                     }
 
-                    call.respondText(
-                        defaultObjectMapper.writeValueAsString(rapporteringsperioder),
-                        ContentType.Application.Json
-                    )
+                    call.respond(rapporteringsperioder ?: emptyList())
                 } catch (e: Exception) {
                     call.application.environment.log.error("Feil ved henting av innsendte rapporteringsperioder: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
@@ -187,7 +178,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     call.application.environment.log.info("Innsending")
 
-                    val rapporteringsperiode = defaultObjectMapper.readValue<Rapporteringsperiode>(call.receiveText())
+                    val rapporteringsperiode = call.receive<Rapporteringsperiode>()
                     call.application.environment.log.info("Send inn ID ${rapporteringsperiode.id}")
 
                     // Henter meldekortdetaljer og meldekortservice sjekker at ident stemmer med FNR i dette meldekortet
@@ -196,9 +187,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         authString,
                         "/v2/meldekortdetaljer?meldekortId=${rapporteringsperiode.id}"
                     )
-                    val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
-                        responseDetaljer.bodyAsText()
-                    )
+                    val meldekortdetaljer = responseDetaljer.body<Meldekortdetaljer>()
                     call.application.environment.log.info("Meldekortdetaljer: $meldekortdetaljer")
 
                     // Mapper meldekortdager
@@ -243,12 +232,10 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
                         header(HttpHeaders.Accept, ContentType.Application.Json)
                         header(HttpHeaders.ContentType, ContentType.Application.Json)
-                        setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
+                        setBody(meldekortkontrollRequest)
                     }
 
-                    val meldekortkontrollResponse = defaultObjectMapper.readValue<MeldekortkontrollResponse>(
-                        response.bodyAsText()
-                    )
+                    val meldekortkontrollResponse = response.body<MeldekortkontrollResponse>()
 
                     val innsendingResponse = InnsendingResponse(
                         meldekortkontrollResponse.meldekortId,
@@ -256,12 +243,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         meldekortkontrollResponse.feilListe.map { feil -> InnsendingFeil(feil.kode, feil.params) }
                     )
 
-                    // Returnerer response fra meldekortkontroll-api
-                    call.response.status(HttpStatusCode.OK)
-                    call.respondText(
-                        defaultObjectMapper.writeValueAsString(innsendingResponse),
-                        ContentType.Application.Json
-                    )
+                    // Returnerer innsendingResponse
+                    call.respond(innsendingResponse)
                 } catch (e: Exception) {
                     call.application.environment.log.error("Feil ved innsending: $e")
                     call.response.status(HttpStatusCode.InternalServerError)

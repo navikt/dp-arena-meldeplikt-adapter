@@ -1,6 +1,6 @@
 package no.nav.dagpenger.arenameldepliktadapter.api
 
-import com.fasterxml.jackson.module.kotlin.readValue
+import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -21,7 +21,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
-import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import no.nav.dagpenger.arenameldepliktadapter.utils.installServerContentNegotiation
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -135,7 +135,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testRapporteringsperioderUtenToken() = setUpTestApplication {
-        val response = client.get("/rapporteringsperioder") {
+        val response = testClient.get("/rapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -158,15 +158,14 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/rapporteringsperioder") {
+        val response = testClient.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
 
-        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        val rapporteringsperioder = response.body<List<Rapporteringsperiode>>()
         assertEquals(1, rapporteringsperioder.size)
         assertEquals(1234567890, rapporteringsperioder[0].id)
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
@@ -186,7 +185,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testSendteRapporteringsperioderUtenToken() = setUpTestApplication {
-        val response = client.get("/sendterapporteringsperioder") {
+        val response = testClient.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -213,7 +212,7 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/sendterapporteringsperioder") {
+        val response = testClient.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -221,7 +220,7 @@ class MeldekortApiTest : TestBase() {
 
         assertEquals(HttpStatusCode.OK, response.status)
 
-        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        val rapporteringsperioder = response.body<List<Rapporteringsperiode>>()
         assertEquals(2, rapporteringsperioder.size)
         assertEquals(1234567890, rapporteringsperioder[0].id)
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
@@ -286,7 +285,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testKorrigertMeldekortUtenToken() = setUpTestApplication {
-        val response = client.get("/korrigertMeldekort/1234567890") {
+        val response = testClient.get("/korrigertMeldekort/1234567890") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -311,7 +310,7 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/korrigertMeldekort/1234567890") {
+        val response = testClient.get("/korrigertMeldekort/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -323,7 +322,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testSendInnRapporteringsperiodeUtenToken() = setUpTestApplication {
-        val response = client.post("/sendinn") {
+        val response = testClient.post("/sendinn") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -366,10 +365,10 @@ class MeldekortApiTest : TestBase() {
                 }
             }
             hosts("https://meldekortkontroll-api") {
+                installServerContentNegotiation()
                 routing {
                     post("") {
-                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(kontrollResponse))
+                        call.respond(kontrollResponse)
                     }
                 }
             }
@@ -377,14 +376,14 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.post("/sendinn") {
+        val response = testClient.post("/sendinn") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(defaultObjectMapper.writeValueAsString(rapporteringsperiode))
+            setBody(rapporteringsperiode)
         }
 
-        val innsendingResponse = defaultObjectMapper.readValue<InnsendingResponse>(response.bodyAsText())
+        val innsendingResponse = response.body<InnsendingResponse>()
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(id, innsendingResponse.id)
