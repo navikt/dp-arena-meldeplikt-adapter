@@ -9,7 +9,6 @@ import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.api.internalApi
 import no.nav.dagpenger.arenameldepliktadapter.api.meldekortApi
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultHttpClient
-import no.nav.dagpenger.arenameldepliktadapter.utils.installServerContentNegotiation
 import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
 import no.nav.security.token.support.v2.tokenValidationSupport
 
@@ -25,8 +24,6 @@ fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
             }
         }
     }
-
-    installServerContentNegotiation()
 
     routing {
         internalApi()
