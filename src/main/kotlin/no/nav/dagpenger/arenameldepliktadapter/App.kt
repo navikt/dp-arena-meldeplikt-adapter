@@ -25,6 +25,8 @@ fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
         }
     }
 
+    // Prøvde ContentNegotiation (se commit dd9f94b), men synes det er bedre uten den
+
     routing {
         internalApi()
         meldekortApi(httpClient)
