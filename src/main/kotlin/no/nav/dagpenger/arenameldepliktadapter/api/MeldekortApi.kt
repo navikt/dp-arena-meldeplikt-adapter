@@ -52,6 +52,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
 
                     val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
+
+                    if (response.status == HttpStatusCode.NoContent) {
+                        call.response.status(HttpStatusCode.NoContent)
+                        return@get
+                    }
+
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                     val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
