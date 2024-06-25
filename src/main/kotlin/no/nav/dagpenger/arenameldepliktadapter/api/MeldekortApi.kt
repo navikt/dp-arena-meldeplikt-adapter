@@ -269,7 +269,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved innsending: $e")
+                    call.application.environment.log.error("Feil ved innsending: $e. Message: ${e.message}, Cause: ${e.cause} Stacktrace: ${e.stackTrace}")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
