@@ -57,6 +57,7 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("no.nav.security:mock-oauth2-server:$mockOauthVersion")
     testImplementation("io.mockk:mockk:$mockkVersion")
+    implementation(libs.kotlin.logging)
 
     // Use the Kotlin JUnit 5 integration.
     testImplementation(kotlin("test-junit5"))

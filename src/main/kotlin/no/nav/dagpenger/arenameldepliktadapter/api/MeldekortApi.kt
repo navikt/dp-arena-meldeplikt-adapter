@@ -43,6 +43,9 @@ import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
 import java.util.*
+import mu.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
@@ -269,7 +272,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved innsending: $e. Message: ${e.message}, Cause: ${e.cause} Stacktrace: ${e.stackTrace}")
+                    logger.error(e) { "Feil ved innsending" }
+                    call.application.environment.log.error("Feil ved innsending: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
