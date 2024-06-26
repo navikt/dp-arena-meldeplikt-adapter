@@ -224,22 +224,22 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     // Oppretter MeldekortkontrollRequest
                     val meldekortkontrollRequest = MeldekortkontrollRequest(
-                        meldekortdetaljer.meldekortId,
-                        meldekortdetaljer.fodselsnr,
-                        meldekortdetaljer.personId,
-                        "DP",
-                        meldekortdetaljer.kortType,
-                        if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK" && meldekortdetaljer.meldeDato != null) meldekortdetaljer.meldeDato else LocalDate.now(),
-                        rapporteringsperiode.periode.fraOgMed,
-                        rapporteringsperiode.periode.tilOgMed,
-                        meldekortdetaljer.meldegruppe,
-                        rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.FerieEllerFravaer),
-                        rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Arbeid),
-                        rapporteringsperiode.registrertArbeidssoker!!,
-                        rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
-                        rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
-                        if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,
-                        meldekortdager
+                        meldekortId = meldekortdetaljer.meldekortId,
+                        fnr = meldekortdetaljer.fodselsnr,
+                        personId = meldekortdetaljer.personId,
+                        kilde = "DP",
+                        kortType = meldekortdetaljer.kortType,
+                        meldedato = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK" && meldekortdetaljer.meldeDato != null) meldekortdetaljer.meldeDato else LocalDate.now(),
+                        periodeFra = rapporteringsperiode.periode.fraOgMed,
+                        periodeTil = rapporteringsperiode.periode.tilOgMed,
+                        meldegruppe = meldekortdetaljer.meldegruppe,
+                        annetFravaer = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.FerieEllerFravaer),
+                        arbeidet = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Arbeid),
+                        arbeidssoker = rapporteringsperiode.registrertArbeidssoker!!,
+                        kurs = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
+                        syk = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
+                        begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,
+                        meldekortdager = meldekortdager
                     )
                     call.application.environment.log.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
 

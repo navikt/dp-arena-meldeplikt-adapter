@@ -2,7 +2,7 @@ package no.nav.dagpenger.arenameldepliktadapter.models
 
 import java.time.LocalDate
 
-class MeldekortkontrollRequest(
+data class MeldekortkontrollRequest(
     var meldekortId: Long = 0,
     var fnr: String,
     var personId: Long = 0,
