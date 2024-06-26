@@ -26,6 +26,7 @@ data class Periode(
 
 enum class RapporteringsperiodeStatus {
     TilUtfylling,
+    Korrigert,
     Innsendt,
     Ferdig
 }
