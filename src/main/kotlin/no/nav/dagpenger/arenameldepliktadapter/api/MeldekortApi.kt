@@ -216,7 +216,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             dag.dato,
                             dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Syk),
                             dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Utdanning),
-                            dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.FerieEllerFravaer),
+                            dag.finnesAktivitetMedType(Aktivitet.AktivitetsType.Fravaer),
                             dag.hentArbeidstimer()
                         )
                     }
@@ -233,7 +233,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         periodeFra = rapporteringsperiode.periode.fraOgMed,
                         periodeTil = rapporteringsperiode.periode.tilOgMed,
                         meldegruppe = meldekortdetaljer.meldegruppe,
-                        annetFravaer = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.FerieEllerFravaer),
+                        annetFravaer = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Fravaer),
                         arbeidet = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Arbeid),
                         arbeidssoker = rapporteringsperiode.registrertArbeidssoker!!,
                         kurs = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
@@ -351,7 +351,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
             (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                 Aktivitet(
                     UUID.randomUUID(),
-                    Aktivitet.AktivitetsType.FerieEllerFravaer,
+                    Aktivitet.AktivitetsType.Fravaer,
                     null
                 )
             )

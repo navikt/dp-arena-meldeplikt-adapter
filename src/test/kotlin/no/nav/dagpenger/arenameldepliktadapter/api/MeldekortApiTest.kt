@@ -282,7 +282,7 @@ class MeldekortApiTest : TestBase() {
 
         assertEquals(LocalDate.parse("2024-04-11"), aktivitetsdager[3].dato)
         assertEquals(1, aktivitetsdager[3].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.FerieEllerFravaer, aktivitetsdager[3].aktiviteter[0].type)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
         assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
 
         assertEquals(LocalDate.parse("2024-04-12"), aktivitetsdager[4].dato)
@@ -298,7 +298,7 @@ class MeldekortApiTest : TestBase() {
         assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
         assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
         assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
-        assertEquals(Aktivitet.AktivitetsType.FerieEllerFravaer, aktivitetsdager[5].aktiviteter[3].type)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
         assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
 
         assertEquals(LocalDate.parse("2024-04-21"), aktivitetsdager[13].dato)
