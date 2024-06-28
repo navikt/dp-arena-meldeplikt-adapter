@@ -19,6 +19,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
+import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
@@ -31,8 +32,8 @@ class MeldekortApiTest : TestBase() {
     private val personString = """
         {
             "personId": 5134902,
-            "etternavn": "AGURKTID",
-            "fornavn": "KONSEKVENT",
+            "etternavn": "TESTESSEN",
+            "fornavn": "TEST",
             "maalformkode": "NO",
             "meldeform": "EMELD",
             "meldekortListe": [
@@ -205,6 +206,47 @@ class MeldekortApiTest : TestBase() {
         assertEquals(RapporteringsperiodeStatus.TilUtfylling, rapporteringsperioder[0].status)
         assertEquals(null, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
+    }
+
+    @Test
+    fun testPersonUtenToken() = setUpTestApplication {
+        val response = client.get("/person") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testPerson() = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldekort") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(personString)
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/person") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+        assertEquals(5134902, person.personId)
+        assertEquals("TEST", person.fornavn)
+        assertEquals("TESTESSEN", person.etternavn)
+        assertEquals("NO", person.maalformkode)
+        assertEquals("EMELD", person.meldeform)
     }
 
     @Test

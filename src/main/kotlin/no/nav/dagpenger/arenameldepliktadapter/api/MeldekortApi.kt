@@ -100,6 +100,31 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
+        route("/person") {
+            get {
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)!!
+
+                    val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
+
+                    if (response.status == HttpStatusCode.NoContent) {
+                        call.response.status(HttpStatusCode.NoContent)
+                        return@get
+                    }
+
+                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
+
+                    call.respondText(
+                        defaultObjectMapper.writeValueAsString(person),
+                        ContentType.Application.Json
+                    )
+                } catch (e: Exception) {
+                    call.application.environment.log.error("Feil ved henting av person: $e")
+                    call.response.status(HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+
         route("/sendterapporteringsperioder") {
             get {
                 try {
