@@ -309,7 +309,7 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testKorrigertMeldekortUtenToken() = setUpTestApplication {
-        val response = client.get("/korrigertMeldekort/1234567890") {
+        val response = client.get("/korrigerrapporteringsperiode/1234567890") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -334,7 +334,7 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/korrigertMeldekort/1234567890") {
+        val response = client.get("/korrigerrapporteringsperiode/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)

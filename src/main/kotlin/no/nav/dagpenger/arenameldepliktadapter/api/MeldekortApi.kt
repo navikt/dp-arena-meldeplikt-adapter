@@ -164,7 +164,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
-        route("/korrigertMeldekort/{meldekortId}") {
+        route("/korrigerrapporteringsperiode/{meldekortId}") {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
