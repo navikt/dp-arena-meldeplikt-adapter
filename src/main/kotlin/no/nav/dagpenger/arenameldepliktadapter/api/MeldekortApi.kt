@@ -9,12 +9,14 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
@@ -22,6 +24,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
@@ -42,8 +45,7 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
-import java.util.*
-import mu.KotlinLogging
+import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
@@ -53,8 +55,10 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
+                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldekort")
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -104,8 +108,10 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(httpClient, authString, "/v2/meldekort")
+                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldekort")
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -129,10 +135,13 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
 
                     val response = sendHttpRequestWithRetry(
                         httpClient,
                         authString,
+                        callId,
                         "/v2/historiskemeldekort?antallMeldeperioder=5"
                     )
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
@@ -148,6 +157,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         val responseDetaljer = sendHttpRequestWithRetry(
                             httpClient,
                             authString,
+                            callId,
                             "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
                         )
                         val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
@@ -193,6 +203,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
 
                     val meldekortId = call.parameters["meldekortId"]
                     if (meldekortId.isNullOrBlank()) {
@@ -203,6 +215,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val response = sendHttpRequestWithRetry(
                         httpClient,
                         authString,
+                        callId,
                         "/v2/korrigertMeldekort?meldekortId=$meldekortId"
                     )
 
@@ -218,6 +231,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             post {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
 
                     call.application.environment.log.info("Innsending")
 
@@ -228,6 +243,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val responseDetaljer = sendHttpRequestWithRetry(
                         httpClient,
                         authString,
+                        callId,
                         "/v2/meldekortdetaljer?meldekortId=${rapporteringsperiode.id}"
                     )
                     val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
@@ -277,6 +293,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
                         header(HttpHeaders.Accept, ContentType.Application.Json)
                         header(HttpHeaders.ContentType, ContentType.Application.Json)
+                        header(HttpHeaders.XRequestId, callId)
                         setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
                     }
 
@@ -306,19 +323,29 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     }
 }
 
-private suspend fun sendHttpRequestWithRetry(httpClient: HttpClient, authString: String, path: String): HttpResponse {
+private suspend fun sendHttpRequestWithRetry(
+    httpClient: HttpClient,
+    authString: String,
+    callId: String,
+    path: String
+): HttpResponse {
     var retries = 0
     var response: HttpResponse
 
     do {
-        response = sendHttpRequest(httpClient, authString, path)
+        response = sendHttpRequest(httpClient, authString, callId, path)
         retries++
     } while (response.status != HttpStatusCode.OK && retries < 3)
 
     return response
 }
 
-private suspend fun sendHttpRequest(httpClient: HttpClient, authString: String, path: String): HttpResponse {
+private suspend fun sendHttpRequest(
+    httpClient: HttpClient,
+    authString: String,
+    callId: String,
+    path: String
+): HttpResponse {
     val incomingToken = authString.replace("Bearer ", "")
     val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
 
@@ -328,6 +355,7 @@ private suspend fun sendHttpRequest(httpClient: HttpClient, authString: String, 
     return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
         header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
         header(HttpHeaders.Accept, ContentType.Application.Json)
+        header(HttpHeaders.XRequestId, callId)
         header("ident", ident)
     }
 }
@@ -384,6 +412,10 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
     }
 
     return aktivitetsdager
+}
+
+private fun getcallId(headers: Headers): String {
+    return headers[HttpHeaders.XRequestId] ?: "dp-adapter-${UUID.randomUUID()}"
 }
 
 private fun tokenExchanger(token: String, audience: String): () -> String = {
