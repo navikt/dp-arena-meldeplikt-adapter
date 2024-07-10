@@ -1,5 +1,5 @@
 val ktorVersion = "2.3.12"
-val jacksonVersion = "2.17.1"
+val jacksonVersion = "2.17.2"
 val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.7"
 val mockkVersion = "1.13.11"
