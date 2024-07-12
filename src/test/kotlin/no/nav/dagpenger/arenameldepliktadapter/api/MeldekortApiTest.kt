@@ -61,6 +61,17 @@ class MeldekortApiTest : TestBase() {
                 },
                 {
                     "meldekortId": 1234567892,
+                    "kortType": "05",
+                    "meldeperiode": "202419",
+                    "fraDato": "2024-05-06",
+                    "tilDato": "2024-05-19",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "FERDI",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567893,
                     "kortType": "10",
                     "meldeperiode": "202419",
                     "fraDato": "2024-05-06",
@@ -287,8 +298,12 @@ class MeldekortApiTest : TestBase() {
         assertEquals(HttpStatusCode.OK, response.status)
 
         val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
+        // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
         assertEquals(2, rapporteringsperioder.size)
         assertEquals(1234567890, rapporteringsperioder[0].id)
+        assertEquals(1234567893, rapporteringsperioder[1].id)
+
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
         assertEquals(14, rapporteringsperioder[0].dager.size)
