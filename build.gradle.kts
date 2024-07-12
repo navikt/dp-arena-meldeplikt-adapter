@@ -1,7 +1,7 @@
 val ktorVersion = "2.3.12"
-val jacksonVersion = "2.17.1"
+val jacksonVersion = "2.17.2"
 val logbackVersion = "1.5.6"
-val mockOauthVersion = "2.1.7"
+val mockOauthVersion = "2.1.8"
 val mockkVersion = "1.13.11"
 
 sourceSets {
@@ -49,7 +49,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
     implementation("no.nav.security:token-validation-ktor-v2:5.0.1")
-    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.05.15-10.36.c98cfe9cb526")
+    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.07.05-16.15.2dc72cf50576")
     implementation("com.auth0:java-jwt:4.4.0")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
