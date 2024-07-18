@@ -4,6 +4,8 @@ val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.8"
 val mockkVersion = "1.13.11"
 
+project.setProperty("mainClassName", "io.ktor.server.netty.EngineMain")
+
 sourceSets {
     this.getByName("main") {
         this.kotlin.srcDir("src/main/kotlin")
@@ -28,7 +30,7 @@ plugins {
 
 application {
     // Define the main class for the application
-    mainClass.set("io.ktor.server.netty.EngineMain")
+    mainClass.set(project.property("mainClassName").toString())
 }
 
 repositories {
@@ -41,6 +43,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-metrics-micrometer:$ktorVersion")
+    implementation("io.micrometer:micrometer-registry-prometheus:1.13.2")
 
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
@@ -70,11 +74,21 @@ java {
     }
 }
 
-tasks.withType<ProcessResources> {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
+tasks {
+    withType<ProcessResources> {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
-tasks.named<Test>("test") {
-    // Use JUnit Platform for unit tests.
-    useJUnitPlatform()
+    named<Test>("test") {
+        // Use JUnit Platform for unit tests.
+        useJUnitPlatform()
+    }
+
+    register("runServerTest", JavaExec::class) {
+        systemProperties["TOKEN_X_WELL_KNOWN_URL"] = "tokenx.dev.nav.no"
+        systemProperties["TOKEN_X_CLIENT_ID"] = "test:meldekort:meldekortservice"
+
+        mainClass.set(project.property("mainClassName").toString())
+        classpath = sourceSets["main"].runtimeClasspath
+    }
 }
