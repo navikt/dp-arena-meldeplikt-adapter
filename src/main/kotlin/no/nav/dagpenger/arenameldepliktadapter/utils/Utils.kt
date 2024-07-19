@@ -62,6 +62,10 @@ fun decodeToken(authString: String?): DecodedJWT? {
 }
 
 fun extractSubject(decodedToken: DecodedJWT?): String? {
+    if (!isCurrentlyRunningOnNais()) {
+        return "01020312345"
+    }
+
     if (decodedToken == null) {
         return null
     }

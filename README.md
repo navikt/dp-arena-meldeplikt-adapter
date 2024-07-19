@@ -6,7 +6,7 @@ Dette er en adapter som skal fungere som et mellomlag mellom [dp-rapportering](h
 Adapter-mekanismen er designet for å lette overgangen fra en adapter til en annen. Selve Arena-adapteren er tiltenkt som en midlertidig løsning som skal erstattes med en annen adapter når vi slutter å bruke Arena som master for DP data.
 
 ## Funksjonalitet
-- Henter rapporteringsperioder (dvs. hente hente tilgjengelige meldekort fra meldekortservice og konvertere til rapporteringsperioder)
+- Henter rapporteringsperioder (dvs. hente tilgjengelige meldekort fra meldekortservice og konvertere til rapporteringsperioder)
 - Henter person (henter Person-data fra meldekortserivce og returnerer den uten konvertering)
 - Henter sendte rapporteringsperioder (dvs. henter historiske meldekort fra meldekortservice og konverterer til rapporteringsperioder)
 - Henter rapporteringsperiode (meldekort) ID for korrigering fra meldekortservice
@@ -14,3 +14,8 @@ Adapter-mekanismen er designet for å lette overgangen fra en adapter til en ann
 
 ## Mer dokumentasjon
 Rapportering i dagpenger-dokumentasjon: https://dagpenger-dokumentasjon.ansatt.nav.no/innbyggerflate/losninger/rapportering
+
+## Lokal kjøring
+Start meldekortservice lokalt
+
+Start adapteren ved å kjøre `./gradlew runServerTest`.

@@ -42,6 +42,7 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
+import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
@@ -54,7 +55,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/rapporteringsperioder") {
             get {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -107,7 +108,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/person") {
             get {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -151,8 +152,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             "ARBS",
                             "DAGP"
                         )
-                    }?.filter {
-                        meldekort -> harIkkeKorrigertMeldekort(meldekort, person.meldekortListe)
+                    }?.filter { meldekort ->
+                        harIkkeKorrigertMeldekort(meldekort, person.meldekortListe)
                     }?.map { meldekort ->
                         val kanSendesFra = meldekort.tilDato.minusDays(1)
 
@@ -327,7 +328,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
 private suspend fun sendHttpRequestWithRetry(
     httpClient: HttpClient,
-    authString: String,
+    authString: String?,
     callId: String,
     path: String
 ): HttpResponse {
@@ -344,11 +345,11 @@ private suspend fun sendHttpRequestWithRetry(
 
 private suspend fun sendHttpRequest(
     httpClient: HttpClient,
-    authString: String,
+    authString: String?,
     callId: String,
     path: String
 ): HttpResponse {
-    val incomingToken = authString.replace("Bearer ", "")
+    val incomingToken = authString?.replace("Bearer ", "") ?: ""
     val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
 
     val decodedToken = decodeToken(authString)
@@ -429,7 +430,11 @@ private fun getcallId(headers: Headers): String {
 }
 
 private fun tokenExchanger(token: String, audience: String): () -> String = {
-    runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
+    if (isCurrentlyRunningOnNais()) {
+        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
+    } else {
+        ""
+    }
 }
 
 private val tokenXClient: CachedOauth2Client by lazy {
