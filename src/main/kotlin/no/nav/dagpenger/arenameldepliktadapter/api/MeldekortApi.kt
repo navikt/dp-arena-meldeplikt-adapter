@@ -340,6 +340,8 @@ private suspend fun sendHttpRequestWithRetry(
         retries++
     } while (response.status != HttpStatusCode.OK && retries < 3)
 
+    if (response.status.value > 300) throw Exception("Uforventet HTTP status ${response.status.value} ved henting data fra meldekortservice")
+
     return response
 }
 

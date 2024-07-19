@@ -146,6 +146,29 @@ class MeldekortApiTest : TestBase() {
         """.trimIndent()
 
     @Test
+    fun testKasterExceptionVedUforventetHttpStatus() = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldekort") {
+                        call.response.status(HttpStatusCode.NotFound)
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/rapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
+
+    @Test
     fun testRapporteringsperioderUtenToken() = setUpTestApplication {
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
