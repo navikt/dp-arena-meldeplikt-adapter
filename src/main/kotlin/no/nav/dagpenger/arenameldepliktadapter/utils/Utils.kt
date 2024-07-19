@@ -17,8 +17,8 @@ fun getEnv(propertyName: String): String? {
     return System.getProperty(propertyName, System.getenv(propertyName))
 }
 
-fun isCurrentlyRunningOnNais(): Boolean {
-    return System.getenv("NAIS_APP_NAME") != null
+fun isCurrentlyRunningLocally(): Boolean {
+    return System.getenv("RUNNING_LOCALLY").toBoolean()
 }
 
 val defaultObjectMapper: ObjectMapper = ObjectMapper()
@@ -62,7 +62,7 @@ fun decodeToken(authString: String?): DecodedJWT? {
 }
 
 fun extractSubject(decodedToken: DecodedJWT?): String? {
-    if (!isCurrentlyRunningOnNais()) {
+    if (isCurrentlyRunningLocally()) {
         return "01020312345"
     }
 

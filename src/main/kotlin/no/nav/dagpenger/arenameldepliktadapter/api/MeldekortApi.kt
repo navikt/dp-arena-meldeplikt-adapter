@@ -42,7 +42,7 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
-import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
+import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningLocally
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
@@ -430,10 +430,10 @@ private fun getcallId(headers: Headers): String {
 }
 
 private fun tokenExchanger(token: String, audience: String): () -> String = {
-    if (isCurrentlyRunningOnNais()) {
-        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
-    } else {
+    if (isCurrentlyRunningLocally()) {
         ""
+    } else {
+        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
     }
 }
 

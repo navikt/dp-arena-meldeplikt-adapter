@@ -3,10 +3,7 @@ package no.nav.dagpenger.arenameldepliktadapter.api
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.mockk.every
-import io.mockk.mockkStatic
 import no.nav.dagpenger.arenameldepliktadapter.main
-import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
 import no.nav.security.mock.oauth2.MockOAuth2Server
 import no.nav.security.mock.oauth2.token.DefaultOAuth2TokenCallback
 import org.junit.jupiter.api.AfterAll
@@ -39,9 +36,6 @@ open class TestBase {
         @BeforeAll
         @JvmStatic
         fun setup() {
-            mockkStatic(::isCurrentlyRunningOnNais)
-            every { isCurrentlyRunningOnNais() } returns true
-
             mockOAuth2Server = MockOAuth2Server()
             mockOAuth2Server.start(8091)
         }

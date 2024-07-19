@@ -16,7 +16,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import no.nav.dagpenger.arenameldepliktadapter.api.internalApi
 import no.nav.dagpenger.arenameldepliktadapter.api.meldekortApi
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultHttpClient
-import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningOnNais
+import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningLocally
 import no.nav.security.token.support.v2.tokenValidationSupport
 
 fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
@@ -34,12 +34,12 @@ fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
     }
 
     install(Authentication) {
-        if (isCurrentlyRunningOnNais()) {
-            tokenValidationSupport(config = config)
-        } else {
+        if (isCurrentlyRunningLocally()) {
             basic {
                 skipWhen { true }
             }
+        } else {
+            tokenValidationSupport(config = config)
         }
     }
 

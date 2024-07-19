@@ -85,6 +85,7 @@ tasks {
     }
 
     register("runServerTest", JavaExec::class) {
+        systemProperties["RUNNING_LOCALLY"] = "true"
         systemProperties["TOKEN_X_WELL_KNOWN_URL"] = "tokenx.dev.nav.no"
         systemProperties["TOKEN_X_CLIENT_ID"] = "test:meldekort:meldekortservice"
         systemProperties["MELDEKORTSERVICE_URL"] = "http://127.0.0.1:8090/meldekortservice/api"
