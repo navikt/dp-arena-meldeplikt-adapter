@@ -2,7 +2,7 @@ val ktorVersion = "2.3.12"
 val jacksonVersion = "2.17.2"
 val logbackVersion = "1.5.6"
 val mockOauthVersion = "2.1.8"
-val mockkVersion = "1.13.11"
+val mockkVersion = "1.13.12"
 
 project.setProperty("mainClassName", "io.ktor.server.netty.EngineMain")
 
