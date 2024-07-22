@@ -99,7 +99,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved henting av rapporteringsperioder: $e")
+                    logger.error("Feil ved henting av rapporteringsperioder: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -126,7 +126,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved henting av person: $e")
+                    logger.error("Feil ved henting av person: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -196,7 +196,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved henting av innsendte rapporteringsperioder: $e")
+                    logger.error("Feil ved henting av innsendte rapporteringsperioder: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -224,7 +224,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     call.respondText(response.bodyAsText())
                 } catch (e: Exception) {
-                    call.application.environment.log.error("Feil ved henting av korrigert meldekort: $e")
+                    logger.error("Feil ved henting av korrigert meldekort: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -237,10 +237,10 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    call.application.environment.log.info("Innsending")
+                    logger.info("Innsending")
 
                     val rapporteringsperiode = defaultObjectMapper.readValue<Rapporteringsperiode>(call.receiveText())
-                    call.application.environment.log.info("Send inn ID ${rapporteringsperiode.id}")
+                    logger.info("Send inn ID ${rapporteringsperiode.id}")
 
                     // Henter meldekortdetaljer og meldekortservice sjekker at ident stemmer med FNR i dette meldekortet
                     val responseDetaljer = sendHttpRequestWithRetry(
@@ -252,7 +252,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                         responseDetaljer.bodyAsText()
                     )
-                    call.application.environment.log.info("Meldekortdetaljer: $meldekortdetaljer")
+                    logger.info("Meldekortdetaljer: $meldekortdetaljer")
 
                     // Mapper meldekortdager
                     val meldekortdager: List<MeldekortkontrollFravaer> = rapporteringsperiode.dager.map { dag ->
@@ -264,7 +264,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             dag.hentArbeidstimer()
                         )
                     }
-                    call.application.environment.log.info("Meldekortdager: $meldekortdager")
+                    logger.info("Meldekortdager: $meldekortdager")
 
                     // Oppretter MeldekortkontrollRequest
                     val meldekortkontrollRequest = MeldekortkontrollRequest(
@@ -285,7 +285,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,
                         meldekortdager = meldekortdager
                     )
-                    call.application.environment.log.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
+                    logger.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
 
                     // Henter TokenX
                     val incomingToken = authString.replace("Bearer ", "")
@@ -318,7 +318,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     )
                 } catch (e: Exception) {
                     logger.error(e) { "Feil ved innsending" }
-                    call.application.environment.log.error("Feil ved innsending: $e")
+                    logger.error("Feil ved innsending: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
