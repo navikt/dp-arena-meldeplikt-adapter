@@ -12,11 +12,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
@@ -166,6 +168,102 @@ class MeldekortApiTest : TestBase() {
         }
 
         assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
+
+    @Test
+    fun testHarMeldepliktUtenToken() = setUpTestApplication {
+        val response = client.get("/harmeldeplikt") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testHarMeldepliktMedDAGP() = setUpTestApplication {
+        val meldegrupper = listOf(
+            Meldegruppe(
+                "01020312345",
+                "ARBS",
+                LocalDate.now(),
+                null,
+                LocalDate.now(),
+                "J",
+                "Aktivert med ingen ytelser",
+                null
+            ),
+            Meldegruppe(
+                "01020312345",
+                "DAGP",
+                LocalDate.now(),
+                LocalDate.now(),
+                LocalDate.now(),
+                "J",
+                "Iverksatt vedtak",
+                1L
+            )
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldegrupper") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/harmeldeplikt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("true", response.bodyAsText())
+    }
+
+    @Test
+    fun testHarMeldepliktUtenDAGP() = setUpTestApplication {
+        val meldegrupper = listOf(
+            Meldegruppe(
+                "01020312345",
+                "ARBS",
+                LocalDate.now(),
+                null,
+                LocalDate.now(),
+                "J",
+                "Aktivert med ingen ytelser",
+                null
+            )
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldegrupper") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/harmeldeplikt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("false", response.bodyAsText())
     }
 
     @Test

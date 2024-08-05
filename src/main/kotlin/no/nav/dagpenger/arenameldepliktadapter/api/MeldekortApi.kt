@@ -29,6 +29,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollFravaer
@@ -52,6 +53,31 @@ private val logger = KotlinLogging.logger {}
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
+        route("/harmeldeplikt") {
+            get {
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
+
+                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldegrupper")
+
+                    val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
+
+                    var harMeldeplikt = "false"
+
+                    if (meldegrupper.any { meldegruppe -> meldegruppe.meldegruppeKode == "DAGP" }) {
+                        harMeldeplikt = "true"
+                    }
+
+                    call.respondText(harMeldeplikt)
+                } catch (e: Exception) {
+                    logger.error("Feil ved henting av meldegrupper: $e")
+                    call.response.status(HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+
         route("/rapporteringsperioder") {
             get {
                 try {
