@@ -1,7 +1,7 @@
 package no.nav.dagpenger.arenameldepliktadapter.models
 
 import java.time.LocalDate
-import java.util.*
+import java.util.UUID
 
 data class Rapporteringsperiode(
     val id: Long, // meldekortId
@@ -12,7 +12,8 @@ data class Rapporteringsperiode(
     val kanKorrigeres: Boolean,
     val status: RapporteringsperiodeStatus,
     val bruttoBelop: Double? = null,
-    val registrertArbeidssoker: Boolean? = null
+    val registrertArbeidssoker: Boolean? = null,
+    val begrunnelseKorrigering: String? = null
 ) {
     fun finnesDagMedAktivitetsType(aktivitetsType: Aktivitet.AktivitetsType): Boolean {
         return dager.find { dag -> dag.finnesAktivitetMedType(aktivitetsType) } != null

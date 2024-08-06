@@ -12,7 +12,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -143,7 +142,8 @@ class MeldekortApiTest : TestBase() {
                             "kurs": false
                         }
                     ]
-                }
+                },
+                "begrunnelse": "Bla bla"
             }
         """.trimIndent()
 
@@ -338,6 +338,7 @@ class MeldekortApiTest : TestBase() {
         assertEquals(RapporteringsperiodeStatus.TilUtfylling, rapporteringsperioder[0].status)
         assertEquals(null, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
+        assertEquals(null, rapporteringsperioder[0].begrunnelseKorrigering)
     }
 
     @Test
@@ -438,6 +439,7 @@ class MeldekortApiTest : TestBase() {
         assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
         assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
+        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseKorrigering)
 
         val aktivitetsdager = rapporteringsperioder[0].dager
         assertEquals(14, aktivitetsdager.size)
@@ -547,7 +549,8 @@ class MeldekortApiTest : TestBase() {
             true,
             RapporteringsperiodeStatus.TilUtfylling,
             0.0,
-            true
+            true,
+            null
         )
 
         val kontrollResponse = MeldekortkontrollResponse(

@@ -161,7 +161,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/sendterapporteringsperioder") {
             get {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -213,7 +213,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             ) RapporteringsperiodeStatus.Ferdig
                             else RapporteringsperiodeStatus.Innsendt,
                             meldekort.bruttoBelop.toDouble(),
-                            meldekortdetaljer.sporsmal?.arbeidssoker
+                            meldekortdetaljer.sporsmal?.arbeidssoker,
+                            meldekortdetaljer.begrunnelse
                         )
                     }
 
@@ -231,7 +232,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/korrigerrapporteringsperiode/{meldekortId}") {
             get {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -259,7 +260,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/sendinn") {
             post {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)!!
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -308,13 +309,13 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         arbeidssoker = rapporteringsperiode.registrertArbeidssoker!!,
                         kurs = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
                         syk = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
-                        begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") "Korrigert av bruker" else null,
+                        begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") rapporteringsperiode.begrunnelseKorrigering else null,
                         meldekortdager = meldekortdager
                     )
                     logger.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
 
                     // Henter TokenX
-                    val incomingToken = authString.replace("Bearer ", "")
+                    val incomingToken = authString?.replace("Bearer ", "") ?: ""
                     val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
 
                     // Request til meldekortkontroll-api
