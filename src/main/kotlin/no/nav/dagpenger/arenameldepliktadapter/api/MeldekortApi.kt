@@ -95,6 +95,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                     val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
+                        // Vi tar ikke bare DAGP meldekort her, men også ARBS fordi det er naturlig å forutsette at hvis bruker har DP nå, tilhører tidligere ARBS meldekort DP
                         meldekort.hoyesteMeldegruppe in arrayOf("ARBS", "DAGP")
                                 && meldekort.beregningstatus in arrayOf("OPPRE", "SENDT")
                     }?.map { meldekort ->
@@ -173,6 +174,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     )
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
+                    // Vi tar ikke bare DAGP meldekort her, men også ARBS fordi det er naturlig å forutsette at hvis bruker har DP nå, tilhører tidligere ARBS meldekort DP
                     val rapporteringsperioder = person.meldekortListe?.filter { meldekort ->
                         meldekort.hoyesteMeldegruppe in arrayOf(
                             "ARBS",
