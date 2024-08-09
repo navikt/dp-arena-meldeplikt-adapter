@@ -9,11 +9,11 @@ data class Rapporteringsperiode(
     val dager: List<Dag>,
     val kanSendesFra: LocalDate,
     val kanSendes: Boolean,
-    val kanKorrigeres: Boolean,
+    val kanEndres: Boolean,
     val status: RapporteringsperiodeStatus,
     val bruttoBelop: Double? = null,
     val registrertArbeidssoker: Boolean? = null,
-    val begrunnelseKorrigering: String? = null
+    val begrunnelseEndring: String? = null
 ) {
     fun finnesDagMedAktivitetsType(aktivitetsType: Aktivitet.AktivitetsType): Boolean {
         return dager.find { dag -> dag.finnesAktivitetMedType(aktivitetsType) } != null
@@ -27,7 +27,7 @@ data class Periode(
 
 enum class RapporteringsperiodeStatus {
     TilUtfylling,
-    Korrigert,
+    Endret,
     Innsendt,
     Ferdig
 }

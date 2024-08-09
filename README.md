@@ -9,7 +9,7 @@ Adapter-mekanismen er designet for å lette overgangen fra en adapter til en ann
 - Henter rapporteringsperioder (dvs. hente tilgjengelige meldekort fra meldekortservice og konvertere til rapporteringsperioder)
 - Henter person (henter Person-data fra meldekortserivce og returnerer den uten konvertering)
 - Henter sendte rapporteringsperioder (dvs. henter historiske meldekort fra meldekortservice og konverterer til rapporteringsperioder)
-- Henter rapporteringsperiode (meldekort) ID for korrigering fra meldekortservice
+- Henter rapporteringsperiode (meldekort) ID for endring (korrigering) fra meldekortservice
 - Sender rapporteringsperiode til Arena (dvs. konverterer en innsendt rapporteringsperiode til MeldekortkontrollRequest, sender den til meldekortkontroll-api og returnerer InnsendingResponse)
 
 ## Mer dokumentasjon

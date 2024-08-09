@@ -116,7 +116,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             },
                             kanSendesFra,
                             !LocalDate.now().isBefore(kanSendesFra),
-                            kanKorrigeres(meldekort, person.meldekortListe),
+                            kanEndres(meldekort, person.meldekortListe),
                             RapporteringsperiodeStatus.TilUtfylling
                         )
                     } ?: emptyList()
@@ -206,7 +206,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             aktivitetsdager,
                             kanSendesFra,
                             false,
-                            kanKorrigeres(meldekort, person.meldekortListe),
+                            kanEndres(meldekort, person.meldekortListe),
                             if (meldekort.beregningstatus in arrayOf(
                                     "FERDI",
                                     "IKKE",
@@ -231,7 +231,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
 
-        route("/korrigerrapporteringsperiode/{meldekortId}") {
+        route("/endrerapporteringsperiode/{meldekortId}") {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)
@@ -311,7 +311,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         arbeidssoker = rapporteringsperiode.registrertArbeidssoker!!,
                         kurs = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Utdanning),
                         syk = rapporteringsperiode.finnesDagMedAktivitetsType(Aktivitet.AktivitetsType.Syk),
-                        begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") rapporteringsperiode.begrunnelseKorrigering else null,
+                        begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") rapporteringsperiode.begrunnelseEndring else null,
                         meldekortdager = meldekortdager
                     )
                     logger.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
@@ -402,7 +402,7 @@ private fun harIkkeKorrigertMeldekort(meldekort: Meldekort, meldekortListe: List
     }
 }
 
-private fun kanKorrigeres(meldekort: Meldekort, meldekortListe: List<Meldekort>): Boolean {
+private fun kanEndres(meldekort: Meldekort, meldekortListe: List<Meldekort>): Boolean {
     return if (meldekort.kortType == "10" || meldekort.beregningstatus == "UBEHA") {
         false
     } else {

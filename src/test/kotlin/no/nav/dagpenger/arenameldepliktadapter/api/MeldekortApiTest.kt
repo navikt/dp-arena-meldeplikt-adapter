@@ -334,11 +334,11 @@ class MeldekortApiTest : TestBase() {
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
         assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
         assertEquals(true, rapporteringsperioder[0].kanSendes)
-        assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
+        assertEquals(true, rapporteringsperioder[0].kanEndres)
         assertEquals(RapporteringsperiodeStatus.TilUtfylling, rapporteringsperioder[0].status)
         assertEquals(null, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
-        assertEquals(null, rapporteringsperioder[0].begrunnelseKorrigering)
+        assertEquals(null, rapporteringsperioder[0].begrunnelseEndring)
     }
 
     @Test
@@ -435,11 +435,11 @@ class MeldekortApiTest : TestBase() {
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
         assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
         assertEquals(false, rapporteringsperioder[0].kanSendes)
-        assertEquals(true, rapporteringsperioder[0].kanKorrigeres)
+        assertEquals(true, rapporteringsperioder[0].kanEndres)
         assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
         assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
-        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseKorrigering)
+        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseEndring)
 
         val aktivitetsdager = rapporteringsperioder[0].dager
         assertEquals(14, aktivitetsdager.size)
@@ -488,8 +488,8 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testKorrigertMeldekortUtenToken() = setUpTestApplication {
-        val response = client.get("/korrigerrapporteringsperiode/1234567890") {
+    fun testEndreRapporteringsperiodetUtenToken() = setUpTestApplication {
+        val response = client.get("/endrerapporteringsperiode/1234567890") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -498,7 +498,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testKorrigertMeldekort() = setUpTestApplication {
+    fun testEndreRapporteringsperiode() = setUpTestApplication {
         val meldekortserviceResponse = "Svar fra Meldekortservice"
 
         externalServices {
@@ -514,7 +514,7 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/korrigerrapporteringsperiode/1234567890") {
+        val response = client.get("/endrerapporteringsperiode/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
