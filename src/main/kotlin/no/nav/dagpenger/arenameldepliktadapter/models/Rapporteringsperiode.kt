@@ -11,6 +11,7 @@ data class Rapporteringsperiode(
     val kanSendes: Boolean,
     val kanEndres: Boolean,
     val status: RapporteringsperiodeStatus,
+    val mottattDato: LocalDate? = null,
     val bruttoBelop: Double? = null,
     val registrertArbeidssoker: Boolean? = null,
     val begrunnelseEndring: String? = null
@@ -29,7 +30,8 @@ enum class RapporteringsperiodeStatus {
     TilUtfylling,
     Endret,
     Innsendt,
-    Ferdig
+    Ferdig,
+    Feilet,
 }
 
 class Dag(

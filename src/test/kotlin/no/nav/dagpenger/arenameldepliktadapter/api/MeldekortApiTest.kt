@@ -25,6 +25,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -67,8 +68,9 @@ class MeldekortApiTest : TestBase() {
                     "fraDato": "2024-05-06",
                     "tilDato": "2024-05-19",
                     "hoyesteMeldegruppe": "ARBS",
-                    "beregningstatus": "FERDI",
+                    "beregningstatus": "OVERM",
                     "forskudd": false,
+                    "mottattDato": "2024-05-19",
                     "bruttoBelop": 0.0
                 },
                 {
@@ -80,6 +82,19 @@ class MeldekortApiTest : TestBase() {
                     "hoyesteMeldegruppe": "ARBS",
                     "beregningstatus": "FERDI",
                     "forskudd": false,
+                    "mottattDato": "2024-05-20",
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567894,
+                    "kortType": "05",
+                    "meldeperiode": "202420",
+                    "fraDato": "2024-05-20",
+                    "tilDato": "2024-06-02",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "FEIL",
+                    "forskudd": false,
+                    "mottattDato": "2024-06-01",
                     "bruttoBelop": 0.0
                 }
             ],
@@ -422,9 +437,11 @@ class MeldekortApiTest : TestBase() {
         val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
         // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
         // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
-        assertEquals(2, rapporteringsperioder.size)
+        assertEquals(4, rapporteringsperioder.size)
         assertEquals(1234567890, rapporteringsperioder[0].id)
-        assertEquals(1234567893, rapporteringsperioder[1].id)
+        assertEquals(1234567892, rapporteringsperioder[1].id)
+        assertEquals(1234567893, rapporteringsperioder[2].id)
+        assertEquals(1234567894, rapporteringsperioder[3].id)
 
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
@@ -437,6 +454,7 @@ class MeldekortApiTest : TestBase() {
         assertEquals(false, rapporteringsperioder[0].kanSendes)
         assertEquals(true, rapporteringsperioder[0].kanEndres)
         assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
+        assertEquals(null, rapporteringsperioder[0].mottattDato)
         assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
         assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
         assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseEndring)
@@ -484,7 +502,14 @@ class MeldekortApiTest : TestBase() {
         assertEquals(LocalDate.parse("2024-04-21"), aktivitetsdager[13].dato)
         assertEquals(0, aktivitetsdager[13].aktiviteter.size)
 
-        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[1].status)
+        assertEquals(RapporteringsperiodeStatus.Endret, rapporteringsperioder[1].status)
+        assertEquals("2024-05-19", rapporteringsperioder[1].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[2].status)
+        assertEquals("2024-05-20", rapporteringsperioder[2].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Feilet, rapporteringsperioder[3].status)
+        assertEquals("2024-06-01", rapporteringsperioder[3].mottattDato?.format(DateTimeFormatter.ISO_DATE))
     }
 
     @Test
@@ -548,6 +573,7 @@ class MeldekortApiTest : TestBase() {
             true,
             true,
             RapporteringsperiodeStatus.TilUtfylling,
+            null,
             0.0,
             true,
             null
