@@ -180,8 +180,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             "ARBS",
                             "DAGP"
                         )
-                    }?.filter { meldekort ->
-                        harIkkeKorrigertMeldekort(meldekort, person.meldekortListe)
                     }?.map { meldekort ->
                         val kanSendesFra = meldekort.tilDato.minusDays(1)
 
@@ -207,13 +205,16 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             kanSendesFra,
                             false,
                             kanEndres(meldekort, person.meldekortListe),
-                            if (meldekort.beregningstatus in arrayOf(
+                            when (meldekort.beregningstatus) {
+                                in arrayOf(
                                     "FERDI",
-                                    "IKKE",
-                                    "OVERM"
-                                )
-                            ) RapporteringsperiodeStatus.Ferdig
-                            else RapporteringsperiodeStatus.Innsendt,
+                                    "IKKE"
+                                ) -> RapporteringsperiodeStatus.Ferdig
+                                "OVERM" -> RapporteringsperiodeStatus.Endret
+                                "FEIL" -> RapporteringsperiodeStatus.Feilet
+                                else -> RapporteringsperiodeStatus.Innsendt
+                            },
+                            meldekort.mottattDato,
                             meldekort.bruttoBelop.toDouble(),
                             meldekortdetaljer.sporsmal?.arbeidssoker,
                             meldekortdetaljer.begrunnelse
@@ -391,14 +392,6 @@ private suspend fun sendHttpRequest(
         header(HttpHeaders.Accept, ContentType.Application.Json)
         header(HttpHeaders.XRequestId, callId)
         header("ident", ident)
-    }
-}
-
-private fun harIkkeKorrigertMeldekort(meldekort: Meldekort, meldekortListe: List<Meldekort>): Boolean {
-    return if (meldekort.kortType == "10") {
-        true
-    } else {
-        meldekortListe.find { mk -> (meldekort.meldekortId != mk.meldekortId && meldekort.meldeperiode == mk.meldeperiode && mk.kortType == "10") } == null
     }
 }
 
