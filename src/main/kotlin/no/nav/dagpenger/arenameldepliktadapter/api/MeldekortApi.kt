@@ -282,7 +282,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                         responseDetaljer.bodyAsText()
                     )
-                    logger.info("Meldekortdetaljer: $meldekortdetaljer")
 
                     // Mapper meldekortdager
                     val meldekortdager: List<MeldekortkontrollFravaer> = rapporteringsperiode.dager.map { dag ->
@@ -315,7 +314,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         begrunnelse = if (meldekortdetaljer.kortType == "KORRIGERT_ELEKTRONISK") rapporteringsperiode.begrunnelseEndring else null,
                         meldekortdager = meldekortdager
                     )
-                    logger.info("MeldekortkontrollRequest: $meldekortkontrollRequest")
 
                     // Henter TokenX
                     val incomingToken = authString?.replace("Bearer ", "") ?: ""
