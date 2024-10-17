@@ -10,14 +10,17 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
@@ -26,11 +29,15 @@ import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MeldekortApiTest : TestBase() {
 
+    private val personId = 1234L
+    private val ident = "01020312345"
+    private val meldekortId = 1234567890L
     private val personString = """
         {
             "personId": 5134902,
@@ -40,7 +47,7 @@ class MeldekortApiTest : TestBase() {
             "meldeform": "EMELD",
             "meldekortListe": [
                 {
-                    "meldekortId": 1234567890,
+                    "meldekortId": $meldekortId,
                     "kortType": "05",
                     "meldeperiode": "202415",
                     "fraDato": "2024-04-08",
@@ -105,13 +112,13 @@ class MeldekortApiTest : TestBase() {
     private val meldekortdetaljer = """
             {
                 "id": "",
-                "personId": "",
-                "fodselsnr": "",
-                "meldekortId": "",
+                "personId": $personId,
+                "fodselsnr": "$ident",
+                "meldekortId": $meldekortId,
                 "meldeperiode": "202421",
                 "meldegruppe": "",
                 "arkivnokkel": "",
-                "kortType": "",
+                "kortType": "KORT_TYPE",
                 "sporsmal": {
                     "meldekortDager": [
                         {
@@ -561,14 +568,30 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testSendInnRapporteringsperiode() = setUpTestApplication {
-        val id = 1234567890L
+        val dager = mutableListOf<Dag>()
+        for (i in 0..13) {
+            dager.add(
+                Dag(
+                    LocalDate.now().plusDays(i.toLong()),
+                    when (i) {
+                        0 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Arbeid, 7.5))
+                        4 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Fravaer, null))
+                        7 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Utdanning, null))
+                        11 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Syk, null))
+                        else -> emptyList()
+                    },
+                    i
+                )
+            )
+        }
+
         val rapporteringsperiode = Rapporteringsperiode(
-            id,
+            meldekortId,
             Periode(
                 LocalDate.now(),
-                LocalDate.now()
+                LocalDate.now().plusDays(14)
             ),
-            emptyList(),
+            dager,
             LocalDate.now(),
             true,
             true,
@@ -580,12 +603,13 @@ class MeldekortApiTest : TestBase() {
         )
 
         val kontrollResponse = MeldekortkontrollResponse(
-            id,
+            meldekortId,
             "OK",
             emptyList(),
             emptyList()
         )
 
+        var request = ""
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
@@ -598,6 +622,7 @@ class MeldekortApiTest : TestBase() {
             hosts("https://meldekortkontroll-api") {
                 routing {
                     post("") {
+                        request = call.receiveText()
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                         call.respond(defaultObjectMapper.writeValueAsString(kontrollResponse))
                     }
@@ -605,7 +630,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.post("/sendinn") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -616,9 +641,51 @@ class MeldekortApiTest : TestBase() {
 
         val innsendingResponse = defaultObjectMapper.readValue<InnsendingResponse>(response.bodyAsText())
 
+        // Sjekk response
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(id, innsendingResponse.id)
+        assertEquals(meldekortId, innsendingResponse.id)
         assertEquals("OK", innsendingResponse.status)
         assertEquals(emptyList(), innsendingResponse.feil)
+
+        // Sjekke request til Meldekortkontroll
+        val meldekortkontrollRequest = defaultObjectMapper.readValue<MeldekortkontrollRequest>(request)
+        assertEquals(meldekortId, meldekortkontrollRequest.meldekortId)
+        assertEquals(ident, meldekortkontrollRequest.fnr)
+        assertEquals(personId, meldekortkontrollRequest.personId)
+        assertEquals("DP", meldekortkontrollRequest.kilde)
+        assertEquals(LocalDate.now(), meldekortkontrollRequest.meldedato)
+        assertEquals(rapporteringsperiode.periode.fraOgMed, meldekortkontrollRequest.periodeFra)
+        assertEquals(rapporteringsperiode.periode.tilOgMed, meldekortkontrollRequest.periodeTil)
+        assertEquals(true, meldekortkontrollRequest.annetFravaer)
+        assertEquals(true, meldekortkontrollRequest.arbeidet)
+        assertEquals(rapporteringsperiode.registrertArbeidssoker, meldekortkontrollRequest.arbeidssoker)
+        assertEquals(true, meldekortkontrollRequest.kurs)
+        assertEquals(true, meldekortkontrollRequest.syk)
+        assertEquals(null, meldekortkontrollRequest.begrunnelse)
+
+        assertEquals(7.5, meldekortkontrollRequest.meldekortdager[0].arbeidTimer)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[0].kurs)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[0].syk)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[0].annetFravaer)
+
+        assertEquals(0.0, meldekortkontrollRequest.meldekortdager[4].arbeidTimer)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[4].kurs)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[4].syk)
+        assertEquals(true, meldekortkontrollRequest.meldekortdager[4].annetFravaer)
+
+        assertEquals(0.0, meldekortkontrollRequest.meldekortdager[7].arbeidTimer)
+        assertEquals(true, meldekortkontrollRequest.meldekortdager[7].kurs)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[7].syk)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[7].annetFravaer)
+
+        assertEquals(0.0, meldekortkontrollRequest.meldekortdager[11].arbeidTimer)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[11].kurs)
+        assertEquals(true, meldekortkontrollRequest.meldekortdager[11].syk)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[11].annetFravaer)
+
+        assertEquals(0.0, meldekortkontrollRequest.meldekortdager[13].arbeidTimer)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[13].kurs)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[13].syk)
+        assertEquals(false, meldekortkontrollRequest.meldekortdager[13].annetFravaer)
     }
 }
