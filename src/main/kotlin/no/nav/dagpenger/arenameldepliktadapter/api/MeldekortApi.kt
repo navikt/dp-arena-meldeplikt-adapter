@@ -263,14 +263,14 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/sendinn") {
             post {
                 try {
+                    logger.info("Innsending")
+
                     val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    logger.info("Innsending")
-
                     val rapporteringsperiode = defaultObjectMapper.readValue<Rapporteringsperiode>(call.receiveText())
-                    logger.info("Send inn ID ${rapporteringsperiode.id}")
+                    logger.info("Mottatt rapporteringsperiode (meldekort) med ID ${rapporteringsperiode.id}")
 
                     // Henter meldekortdetaljer og meldekortservice sjekker at ident stemmer med FNR i dette meldekortet
                     val responseDetaljer = sendHttpRequestWithRetry(
@@ -282,6 +282,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                         responseDetaljer.bodyAsText()
                     )
+                    logger.info("Mottatt meldekortdetaljer for meldekort med ID ${rapporteringsperiode.id}")
 
                     // Mapper meldekortdager
                     val meldekortdager: List<MeldekortkontrollFravaer> = rapporteringsperiode.dager.map { dag ->
@@ -293,7 +294,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             dag.hentArbeidstimer()
                         )
                     }
-                    logger.info("Meldekortdager: $meldekortdager")
 
                     // Oppretter MeldekortkontrollRequest
                     val meldekortkontrollRequest = MeldekortkontrollRequest(
@@ -327,6 +327,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         header(HttpHeaders.XRequestId, callId)
                         setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
                     }
+                    logger.info("Mottatt MeldekortkontrollResponse for meldekort med ID ${rapporteringsperiode.id}")
 
                     val meldekortkontrollResponse = defaultObjectMapper.readValue<MeldekortkontrollResponse>(
                         response.bodyAsText()
