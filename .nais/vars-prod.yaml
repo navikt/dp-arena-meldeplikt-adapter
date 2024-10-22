@@ -1,5 +1,5 @@
 ingresses:
-  - https://dp-arena-meldeplikt-adapter.nav.no
+  - https://dp-arena-meldeplikt-adapter.intern.nav.no
 meldekortserviceHost: meldekortservice.prod-fss-pub.nais.io
 meldekortserviceAudience: prod-fss:meldekort:meldekortservice
 meldekortkontrollHost: meldekortkontroll-api.prod-fss-pub.nais.io
