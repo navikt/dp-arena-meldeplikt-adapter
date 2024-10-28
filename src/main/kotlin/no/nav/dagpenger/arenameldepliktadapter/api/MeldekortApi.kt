@@ -60,7 +60,9 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldegrupper")
+                    val response = sendHttpRequestWithRetry(
+                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
+                    )
 
                     val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
 
@@ -85,7 +87,9 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldekort")
+                    val response = sendHttpRequestWithRetry(
+                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
+                    )
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -139,7 +143,9 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(httpClient, authString, callId, "/v2/meldekort")
+                    val response = sendHttpRequestWithRetry(
+                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
+                    )
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -167,10 +173,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     call.response.header(HttpHeaders.XRequestId, callId)
 
                     val response = sendHttpRequestWithRetry(
-                        httpClient,
-                        authString,
-                        callId,
-                        "/v2/historiskemeldekort?antallMeldeperioder=5"
+                        sendHttpRequestTilMeldekortservice(
+                            httpClient,
+                            authString,
+                            callId,
+                            "/v2/historiskemeldekort?antallMeldeperioder=5"
+                        )
                     )
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
@@ -184,10 +192,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         val kanSendesFra = meldekort.tilDato.minusDays(1)
 
                         val responseDetaljer = sendHttpRequestWithRetry(
-                            httpClient,
-                            authString,
-                            callId,
-                            "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                            sendHttpRequestTilMeldekortservice(
+                                httpClient,
+                                authString,
+                                callId,
+                                "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                            )
                         )
                         val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                             responseDetaljer.bodyAsText()
@@ -246,10 +256,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     }
 
                     val response = sendHttpRequestWithRetry(
-                        httpClient,
-                        authString,
-                        callId,
-                        "/v2/korrigertMeldekort?meldekortId=$meldekortId"
+                        sendHttpRequestTilMeldekortservice(
+                            httpClient,
+                            authString,
+                            callId,
+                            "/v2/korrigertMeldekort?meldekortId=$meldekortId"
+                        )
                     )
 
                     call.respondText(response.bodyAsText())
@@ -274,10 +286,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     // Henter meldekortdetaljer og meldekortservice sjekker at ident stemmer med FNR i dette meldekortet
                     val responseDetaljer = sendHttpRequestWithRetry(
-                        httpClient,
-                        authString,
-                        callId,
-                        "/v2/meldekortdetaljer?meldekortId=${rapporteringsperiode.id}"
+                        sendHttpRequestTilMeldekortservice(
+                            httpClient,
+                            authString,
+                            callId,
+                            "/v2/meldekortdetaljer?meldekortId=${rapporteringsperiode.id}"
+                        )
                     )
                     val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                         responseDetaljer.bodyAsText()
@@ -315,23 +329,14 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         meldekortdager = meldekortdager
                     )
 
-                    // Henter TokenX
-                    val incomingToken = authString?.replace("Bearer ", "") ?: ""
-                    val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
-
                     // Request til meldekortkontroll-api
-                    val response = httpClient.post(getEnv("MELDEKORTKONTROLL_URL")!!) {
-                        header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
-                        header(HttpHeaders.Accept, ContentType.Application.Json)
-                        header(HttpHeaders.ContentType, ContentType.Application.Json)
-                        header(HttpHeaders.XRequestId, callId)
-                        setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
-                    }
-                    logger.info("Mottatt MeldekortkontrollResponse for meldekort med ID ${rapporteringsperiode.id}")
-
+                    val response = sendHttpRequestWithRetry(
+                        sendHttpRequestTilMeldekortkontroll(httpClient, authString, callId, meldekortkontrollRequest)
+                    )
                     val meldekortkontrollResponse = defaultObjectMapper.readValue<MeldekortkontrollResponse>(
                         response.bodyAsText()
                     )
+                    logger.info("Mottatt MeldekortkontrollResponse for meldekort med ID ${rapporteringsperiode.id}")
 
                     val innsendingResponse = InnsendingResponse(
                         meldekortkontrollResponse.meldekortId,
@@ -347,7 +352,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     )
                 } catch (e: Exception) {
                     logger.error(e) { "Feil ved innsending" }
-                    logger.error("Feil ved innsending: $e")
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -356,41 +360,60 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 }
 
 private suspend fun sendHttpRequestWithRetry(
-    httpClient: HttpClient,
-    authString: String?,
-    callId: String,
-    path: String
+    fn: suspend () -> HttpResponse
 ): HttpResponse {
     var retries = 0
     var response: HttpResponse
 
     do {
-        response = sendHttpRequest(httpClient, authString, callId, path)
+        response = fn.invoke()
         retries++
     } while (response.status != HttpStatusCode.OK && retries < 3)
 
-    if (response.status.value > 300) throw Exception("Uforventet HTTP status ${response.status.value} ved henting data fra meldekortservice")
+    if (response.status.value > 300) throw Exception("Uforventet HTTP status ${response.status.value} etter $retries forsøk")
 
     return response
 }
 
-private suspend fun sendHttpRequest(
+private fun sendHttpRequestTilMeldekortservice(
     httpClient: HttpClient,
     authString: String?,
     callId: String,
     path: String
-): HttpResponse {
+): () -> HttpResponse = {
     val incomingToken = authString?.replace("Bearer ", "") ?: ""
     val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
 
     val decodedToken = decodeToken(authString)
     val ident = extractSubject(decodedToken)
 
-    return httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
-        header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
-        header(HttpHeaders.Accept, ContentType.Application.Json)
-        header(HttpHeaders.XRequestId, callId)
-        header("ident", ident)
+    runBlocking {
+        httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
+            header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.XRequestId, callId)
+            header("ident", ident)
+        }
+    }
+}
+
+private fun sendHttpRequestTilMeldekortkontroll(
+    httpClient: HttpClient,
+    authString: String?,
+    callId: String,
+    meldekortkontrollRequest: MeldekortkontrollRequest
+): () -> HttpResponse = {
+    val incomingToken = authString?.replace("Bearer ", "") ?: ""
+    val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
+
+    runBlocking {
+        httpClient.post(getEnv("MELDEKORTKONTROLL_URL")!!) {
+            header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            header(HttpHeaders.XRequestId, callId)
+            setBody(defaultObjectMapper.writeValueAsString(meldekortkontrollRequest))
+        }
     }
 }
 
