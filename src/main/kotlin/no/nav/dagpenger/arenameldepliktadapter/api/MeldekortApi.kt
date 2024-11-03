@@ -23,6 +23,7 @@ import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
@@ -74,7 +75,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     call.respondText(harMeldeplikt)
                 } catch (e: Exception) {
-                    logger.error("Feil ved henting av meldegrupper: $e")
+                    logger.error(e) { "Feil ved henting av meldegrupper" }
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -130,7 +131,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    logger.error("Feil ved henting av rapporteringsperioder: $e")
+                    logger.error(e) { "Feil ved henting av rapporteringsperioder" }
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -159,7 +160,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    logger.error("Feil ved henting av person: $e")
+                    logger.error(e) { "Feil ved henting av person" }
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -220,6 +221,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                                     "FERDI",
                                     "IKKE"
                                 ) -> RapporteringsperiodeStatus.Ferdig
+
                                 "OVERM" -> RapporteringsperiodeStatus.Endret
                                 "FEIL" -> RapporteringsperiodeStatus.Feilet
                                 else -> RapporteringsperiodeStatus.Innsendt
@@ -236,7 +238,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
-                    logger.error("Feil ved henting av innsendte rapporteringsperioder: $e")
+                    logger.error(e) { "Feil ved henting av innsendte rapporteringsperioder" }
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -266,7 +268,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     call.respondText(response.bodyAsText())
                 } catch (e: Exception) {
-                    logger.error("Feil ved henting av korrigert meldekort: $e")
+                    logger.error(e) { "Feil ved henting av korrigert meldekort" }
                     call.response.status(HttpStatusCode.InternalServerError)
                 }
             }
@@ -363,13 +365,22 @@ private suspend fun sendHttpRequestWithRetry(
     fn: suspend () -> HttpResponse
 ): HttpResponse {
     var retries = 0
-    var response: HttpResponse
+    var response: HttpResponse?
 
     do {
-        response = fn.invoke()
-        retries++
-    } while (response.status != HttpStatusCode.OK && retries < 3)
+        if (retries > 0) delay(1000)
 
+        response = try {
+            fn.invoke()
+        } catch (e: Exception) {
+            logger.warn(e) { "Feil ved sending request. Forsøk ${retries+1}" }
+            null
+        }
+
+        retries++
+    } while ((response == null || response.status != HttpStatusCode.OK) && retries < 3)
+
+    if (response == null) throw Exception("Kunne ikke få response etter $retries forsøk")
     if (response.status.value > 300) throw Exception("Uforventet HTTP status ${response.status.value} etter $retries forsøk")
 
     return response

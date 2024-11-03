@@ -170,6 +170,21 @@ class MeldekortApiTest : TestBase() {
         """.trimIndent()
 
     @Test
+    fun testKasterExceptionHvisIkkeKanHenteResponse() = setUpTestApplication {
+        // Setter ikke ExternalServices
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/rapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
+
+    @Test
     fun testKasterExceptionVedUforventetHttpStatus() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
