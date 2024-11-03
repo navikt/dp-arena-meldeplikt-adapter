@@ -1,6 +1,7 @@
 val ktorVersion = "2.3.12"
 val jacksonVersion = "2.18.0"
 val logbackVersion = "1.5.12"
+val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.9"
 val mockkVersion = "1.13.13"
 
@@ -57,6 +58,7 @@ dependencies {
     implementation("com.auth0:java-jwt:4.4.0")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation("net.logstash.logback:logstash-logback-encoder:$logstashEncoderVersion")
 
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("no.nav.security:mock-oauth2-server:$mockOauthVersion")
