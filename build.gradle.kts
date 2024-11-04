@@ -53,7 +53,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("no.nav.security:token-validation-ktor-v2:5.0.5")
+    implementation("no.nav.security:token-validation-ktor-v2:5.0.8")
     implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.07.23-10.35.4fc49fbf0d7e")
     implementation("com.auth0:java-jwt:4.4.0")
 
