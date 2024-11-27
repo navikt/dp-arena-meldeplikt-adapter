@@ -39,6 +39,8 @@ spec:
       value: 'https://{{ meldekortkontrollHost }}/api/v1/kontroll'
     - name: MELDEKORTKONTROLL_AUDIENCE
       value: {{ meldekortkontrollAudience }}
+    - name: JDK_JAVA_OPTIONS # Bytter GC og lar JVMen se at det er flere CPU kjerner
+      value: -XX:+UseParallelGC -XX:ActiveProcessorCount=4
   tokenx:
     enabled: true
   accessPolicy:
