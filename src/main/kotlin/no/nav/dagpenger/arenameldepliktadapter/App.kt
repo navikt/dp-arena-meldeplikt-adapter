@@ -17,7 +17,7 @@ import no.nav.dagpenger.arenameldepliktadapter.api.internalApi
 import no.nav.dagpenger.arenameldepliktadapter.api.meldekortApi
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultHttpClient
 import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningLocally
-import no.nav.security.token.support.v2.tokenValidationSupport
+import no.nav.security.token.support.v3.tokenValidationSupport
 
 fun Application.main(httpClient: HttpClient = defaultHttpClient()) {
     val config = this.environment.config

@@ -1,5 +1,6 @@
-val ktorVersion = "2.3.12"
+val ktorVersion = "3.0.1"
 val jacksonVersion = "2.18.1"
+val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.5.12"
 val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.10"
@@ -26,7 +27,7 @@ plugins {
     application
 
     // Apply the Ktor plugin to create the application distribution
-    id("io.ktor.plugin") version "2.3.12"
+    id("io.ktor.plugin") version "3.0.1"
 }
 
 application {
@@ -36,12 +37,12 @@ application {
 
 repositories {
     mavenCentral()
-    maven("https://jitpack.io")
+    maven("https://github-package-registry-mirror.gc.nav.no/cached/maven-release")
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core-jvm")
-    implementation("io.ktor:ktor-server-netty-jvm")
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-metrics-micrometer:$ktorVersion")
@@ -53,17 +54,17 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("no.nav.security:token-validation-ktor-v2:5.0.11")
-    implementation("com.github.navikt.dp-biblioteker:oauth2-klient:2024.07.23-10.35.4fc49fbf0d7e")
+    implementation("no.nav.security:token-validation-ktor-v3:5.0.13")
+    implementation("no.nav.dagpenger:oauth2-klient:2024.10.31-15.02.1d4f08a38d24")
     implementation("com.auth0:java-jwt:4.4.0")
 
+    implementation("io.github.microutils:kotlin-logging:$kotlinLoggingVersion")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("net.logstash.logback:logstash-logback-encoder:$logstashEncoderVersion")
 
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("no.nav.security:mock-oauth2-server:$mockOauthVersion")
     testImplementation("io.mockk:mockk:$mockkVersion")
-    implementation(libs.kotlin.logging)
 
     // Use the Kotlin JUnit 5 integration.
     testImplementation(kotlin("test-junit5"))

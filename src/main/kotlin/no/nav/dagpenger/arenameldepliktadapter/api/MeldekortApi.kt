@@ -12,7 +12,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveText
@@ -490,7 +489,7 @@ private fun tokenExchanger(token: String, audience: String): () -> String = {
     if (isCurrentlyRunningLocally()) {
         ""
     } else {
-        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken }
+        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken ?: "" }
     }
 }
 
