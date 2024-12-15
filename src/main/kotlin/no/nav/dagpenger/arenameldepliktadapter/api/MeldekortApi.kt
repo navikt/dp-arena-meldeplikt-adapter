@@ -489,7 +489,7 @@ private fun tokenExchanger(token: String, audience: String): () -> String = {
     if (isCurrentlyRunningLocally()) {
         ""
     } else {
-        runBlocking { tokenXClient.tokenExchange(token, audience).accessToken ?: "" }
+        runBlocking { tokenXClient.tokenExchange(token, audience).access_token ?: "" }
     }
 }
 
