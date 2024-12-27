@@ -18,7 +18,7 @@ fun getEnv(propertyName: String): String? {
 }
 
 fun isCurrentlyRunningLocally(): Boolean {
-    return System.getenv("RUNNING_LOCALLY").toBoolean()
+    return getEnv("RUNNING_LOCALLY").toBoolean()
 }
 
 val defaultObjectMapper: ObjectMapper = ObjectMapper()
