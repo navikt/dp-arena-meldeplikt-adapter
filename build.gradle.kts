@@ -1,10 +1,10 @@
-val ktorVersion = "3.0.2"
+val ktorVersion = "3.0.3"
 val jacksonVersion = "2.18.2"
 val kotlinLoggingVersion = "3.0.5"
-val logbackVersion = "1.5.12"
+val logbackVersion = "1.5.15"
 val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.10"
-val mockkVersion = "1.13.13"
+val mockkVersion = "1.13.14"
 
 project.setProperty("mainClassName", "io.ktor.server.netty.EngineMain")
 
@@ -27,7 +27,7 @@ plugins {
     application
 
     // Apply the Ktor plugin to create the application distribution
-    id("io.ktor.plugin") version "3.0.2"
+    id("io.ktor.plugin") version "3.0.3"
 }
 
 application {
@@ -55,7 +55,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
     implementation("no.nav.security:token-validation-ktor-v3:5.0.13")
-    implementation("no.nav.dagpenger:oauth2-klient:2024.12.10-14.29.b14a663ac6da")
+    implementation("no.nav.dagpenger:oauth2-klient:2024.12.19-12.57.9d42f60a1165")
     implementation("com.auth0:java-jwt:4.4.0")
 
     implementation("io.github.microutils:kotlin-logging:$kotlinLoggingVersion")
