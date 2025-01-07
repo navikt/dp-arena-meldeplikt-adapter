@@ -24,9 +24,8 @@ jobs:
     name: Build and publish Docker image
     runs-on: ubuntu-latest
     permissions:
-      contents: "write"
-      checks: "write"
-      id-token: "write"
+      contents: read
+      id-token: write
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -53,6 +52,8 @@ jobs:
     if: github.event.inputs.environment != 'p'
     needs: [ build ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Set default environment for push to main
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -71,6 +72,8 @@ jobs:
     if: github.event.inputs.environment == 'p'
     needs: [ build ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: nais/deploy/actions/deploy@v2
