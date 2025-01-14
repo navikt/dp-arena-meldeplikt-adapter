@@ -6,7 +6,7 @@ val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.10"
 val mockkVersion = "1.13.14"
 
-project.setProperty("mainClassName", "io.ktor.server.netty.EngineMain")
+project.setProperty("mainClassName", "io.ktor.server.cio.EngineMain")
 
 sourceSets {
     this.getByName("main") {
@@ -42,7 +42,7 @@ repositories {
 
 dependencies {
     implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-cio:$ktorVersion")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-metrics-micrometer:$ktorVersion")
