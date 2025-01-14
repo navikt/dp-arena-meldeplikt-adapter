@@ -1,10 +1,10 @@
 val ktorVersion = "3.0.3"
 val jacksonVersion = "2.18.2"
 val kotlinLoggingVersion = "3.0.5"
-val logbackVersion = "1.5.15"
+val logbackVersion = "1.5.16"
 val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.10"
-val mockkVersion = "1.13.14"
+val mockkVersion = "1.13.16"
 
 project.setProperty("mainClassName", "io.ktor.server.cio.EngineMain")
 
@@ -54,7 +54,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("no.nav.security:token-validation-ktor-v3:5.0.13")
+    implementation("no.nav.security:token-validation-ktor-v3:5.0.14")
     implementation("no.nav.dagpenger:oauth2-klient:2024.12.19-12.57.9d42f60a1165")
     implementation("com.auth0:java-jwt:4.4.0")
 
