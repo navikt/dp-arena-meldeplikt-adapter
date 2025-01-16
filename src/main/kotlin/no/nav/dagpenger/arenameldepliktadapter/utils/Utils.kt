@@ -33,7 +33,7 @@ fun defaultHttpClient(): HttpClient {
         httpClient = HttpClient(CIO) {
             install(HttpTimeout) {
                 connectTimeoutMillis = Duration.ofSeconds(60).toMillis()
-                requestTimeoutMillis = Duration.ofSeconds(60).toMillis()
+                requestTimeoutMillis = Duration.ofSeconds(30).toMillis() // 3 forsøk gir 90s, dp-raportering venter 100s
                 socketTimeoutMillis = Duration.ofSeconds(60).toMillis()
             }
             expectSuccess = false
