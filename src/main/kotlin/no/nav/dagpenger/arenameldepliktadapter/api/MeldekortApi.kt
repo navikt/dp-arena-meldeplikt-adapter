@@ -29,6 +29,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.KortType
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
@@ -107,6 +108,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                         Rapporteringsperiode(
                             meldekort.meldekortId,
+                            meldekort.kortType,
                             Periode(
                                 meldekort.fraDato,
                                 meldekort.tilDato
@@ -152,10 +154,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         return@get
                     }
 
-                    val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
-
                     call.respondText(
-                        defaultObjectMapper.writeValueAsString(person),
+                        response.bodyAsText(),
                         ContentType.Application.Json
                     )
                 } catch (e: Exception) {
@@ -207,6 +207,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                         Rapporteringsperiode(
                             meldekort.meldekortId,
+                            meldekort.kortType,
                             Periode(
                                 meldekort.fraDato,
                                 meldekort.tilDato
@@ -372,7 +373,7 @@ private suspend fun sendHttpRequestWithRetry(
         response = try {
             fn.invoke()
         } catch (e: Exception) {
-            logger.warn(e) { "Feil ved sending request. Forsøk ${retries+1}" }
+            logger.warn(e) { "Feil ved sending request. Forsøk ${retries + 1}" }
             null
         }
 
@@ -428,10 +429,16 @@ private fun sendHttpRequestTilMeldekortkontroll(
 }
 
 private fun kanEndres(meldekort: Meldekort, meldekortListe: List<Meldekort>): Boolean {
-    return if (meldekort.kortType == "10" || meldekort.beregningstatus == "UBEHA") {
+    return if (meldekort.kortType == KortType.KORRIGERT_ELEKTRONISK || meldekort.beregningstatus == "UBEHA") {
         false
     } else {
-        meldekortListe.find { mk -> (meldekort.meldekortId != mk.meldekortId && meldekort.meldeperiode == mk.meldeperiode && mk.kortType == "10") } == null
+        meldekortListe.find { mk ->
+            (
+                    meldekort.meldekortId != mk.meldekortId
+                            && meldekort.meldeperiode == mk.meldeperiode
+                            && mk.kortType == KortType.KORRIGERT_ELEKTRONISK
+                    )
+        } == null
     }
 }
 

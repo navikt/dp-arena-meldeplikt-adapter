@@ -18,6 +18,7 @@ import io.ktor.server.routing.routing
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.KortType
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
@@ -601,6 +602,7 @@ class MeldekortApiTest : TestBase() {
 
         val rapporteringsperiode = Rapporteringsperiode(
             meldekortId,
+            KortType.ELEKTRONISK,
             Periode(
                 LocalDate.now(),
                 LocalDate.now().plusDays(14)

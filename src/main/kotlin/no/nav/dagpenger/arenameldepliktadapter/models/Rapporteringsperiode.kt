@@ -5,6 +5,7 @@ import java.util.UUID
 
 data class Rapporteringsperiode(
     val id: Long, // meldekortId
+    val type: KortType,
     val periode: Periode,
     val dager: List<Dag>,
     val kanSendesFra: LocalDate,
