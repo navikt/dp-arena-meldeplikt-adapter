@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/java21-debian12:nonroot
+FROM gcr.io/distroless/java21
 
-COPY build/libs/dp-arena-meldeplikt-adapter-all.jar /app/app.jar
-EXPOSE 8080
+COPY build/libs/dp-arena-meldeplikt-adapter-all.jar /app.jar
+CMD ["/app.jar"]
