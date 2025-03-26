@@ -1,7 +1,7 @@
 val ktorVersion = "3.1.1"
 val jacksonVersion = "2.18.3"
 val kotlinLoggingVersion = "3.0.5"
-val logbackVersion = "1.5.17"
+val logbackVersion = "1.5.18"
 val logstashEncoderVersion = "8.0"
 val mockOauthVersion = "2.1.10"
 val mockkVersion = "1.13.17"
@@ -21,7 +21,7 @@ sourceSets {
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm plugin to add support for Kotlin.
-    kotlin("jvm") version "2.1.10"
+    kotlin("jvm") version "2.1.20"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -54,7 +54,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
-    implementation("no.nav.security:token-validation-ktor-v3:5.0.19")
+    implementation("no.nav.security:token-validation-ktor-v3:5.0.20")
     implementation("no.nav.dagpenger:oauth2-klient:2025.02.13-18.02.052b7c34baab")
     implementation("com.auth0:java-jwt:4.5.0")
 
