@@ -177,7 +177,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             httpClient,
                             authString,
                             callId,
-                            "/v2/historiskemeldekort?antallMeldeperioder=5"
+                            "/v2/historiskemeldekort?antallMeldeperioder=10"
                         )
                     )
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
