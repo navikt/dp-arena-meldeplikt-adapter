@@ -2,7 +2,7 @@ val ktorVersion = "3.1.2"
 val jacksonVersion = "2.18.3"
 val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.5.18"
-val logstashEncoderVersion = "8.0"
+val logstashEncoderVersion = "8.1"
 val mockOauthVersion = "2.1.10"
 val mockkVersion = "1.13.17"
 
