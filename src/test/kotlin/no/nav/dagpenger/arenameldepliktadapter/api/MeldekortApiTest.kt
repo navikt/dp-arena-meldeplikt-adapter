@@ -208,8 +208,8 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testHarMeldepliktUtenToken() = setUpTestApplication {
-        val response = client.get("/harmeldeplikt") {
+    fun testHarDpMeldepliktUtenToken() = setUpTestApplication {
+        val response = client.get("/hardpmeldeplikt") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
@@ -218,7 +218,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testHarMeldepliktMedDAGP() = setUpTestApplication {
+    fun testHarDpMeldepliktMedDAGP() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
                 "01020312345",
@@ -255,7 +255,7 @@ class MeldekortApiTest : TestBase() {
 
         val token = issueToken("01020312345")
 
-        val response = client.get("/harmeldeplikt") {
+        val response = client.get("/hardpmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -266,7 +266,7 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testHarMeldepliktUtenDAGP() = setUpTestApplication {
+    fun testHarDpMeldepliktUtenDAGP() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
                 "01020312345",
@@ -279,6 +279,81 @@ class MeldekortApiTest : TestBase() {
                 null
             )
         )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldegrupper") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/hardpmeldeplikt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("false", response.bodyAsText())
+    }
+
+    @Test
+    fun testHarMeldepliktUtenToken() = setUpTestApplication {
+        val response = client.get("/harmeldeplikt") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testHarMeldepliktTrue() = setUpTestApplication {
+        val meldegrupper = listOf(
+            Meldegruppe(
+                "01020312345",
+                "ARBS",
+                LocalDate.now(),
+                null,
+                LocalDate.now(),
+                "J",
+                "Aktivert med ingen ytelser",
+                null
+            ),
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldegrupper") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/harmeldeplikt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("true", response.bodyAsText())
+    }
+
+    @Test
+    fun testHarMeldepliktFalse() = setUpTestApplication {
+        val meldegrupper = emptyList<Meldegruppe>()
 
         externalServices {
             hosts("https://meldekortservice") {

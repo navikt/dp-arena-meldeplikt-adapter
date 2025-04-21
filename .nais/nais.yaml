@@ -43,12 +43,19 @@ spec:
       value: -XX:+UseParallelGC -XX:ActiveProcessorCount=4
   tokenx:
     enabled: true
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
   accessPolicy:
     inbound:
       rules:
         - application: dp-rapportering
         - application: tokenx-token-generator
           namespace: aura
+          cluster: dev-gcp
+        - application: azure-token-generator
+          namespace: nais
           cluster: dev-gcp
     outbound:
       external:

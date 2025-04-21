@@ -54,7 +54,7 @@ private val logger = KotlinLogging.logger {}
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
     authenticate {
-        route("/harmeldeplikt") {
+        route("/hardpmeldeplikt") {
             get {
                 try {
                     val authString = call.request.header(HttpHeaders.Authorization)
@@ -70,6 +70,33 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     var harMeldeplikt = "false"
 
                     if (meldegrupper.any { meldegruppe -> meldegruppe.meldegruppeKode == "DAGP" }) {
+                        harMeldeplikt = "true"
+                    }
+
+                    call.respondText(harMeldeplikt)
+                } catch (e: Exception) {
+                    logger.error(e) { "Feil ved henting av meldegrupper" }
+                    call.response.status(HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+
+        route("/harmeldeplikt") {
+            get {
+                try {
+                    val authString = call.request.header(HttpHeaders.Authorization)
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
+
+                    val response = sendHttpRequestWithRetry(
+                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
+                    )
+
+                    val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
+
+                    var harMeldeplikt = "false"
+
+                    if (meldegrupper.isNotEmpty()) {
                         harMeldeplikt = "true"
                     }
 
@@ -393,14 +420,21 @@ private fun sendHttpRequestTilMeldekortservice(
     path: String
 ): () -> HttpResponse = {
     val incomingToken = authString?.replace("Bearer ", "") ?: ""
-    val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
-
     val decodedToken = decodeToken(authString)
     val ident = extractSubject(decodedToken)
 
+    var token = ""
+    if (ident?.length == 11) {
+        val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
+        token = tokenProvider.invoke()
+    } else {
+        val tokenProvider = azureAdExchanger(getEnv("MELDEKORTKONTROLL_AUDIENCE")?.replace(":", ".") ?: "")
+        token = tokenProvider.invoke()
+    }
+
     runBlocking {
         httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
-            header(HttpHeaders.Authorization, "Bearer ${tokenProvider.invoke()}")
+            header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.XRequestId, callId)
             header("ident", ident)
@@ -415,7 +449,7 @@ private fun sendHttpRequestTilMeldekortkontroll(
     meldekortkontrollRequest: MeldekortkontrollRequest
 ): () -> HttpResponse = {
     val incomingToken = authString?.replace("Bearer ", "") ?: ""
-    val tokenProvider = tokenExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
+    val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTKONTROLL_AUDIENCE") ?: "")
 
     runBlocking {
         httpClient.post(getEnv("MELDEKORTKONTROLL_URL")!!) {
@@ -492,11 +526,19 @@ private fun getcallId(headers: Headers): String {
     return headers[HttpHeaders.XRequestId] ?: "dp-adapter-${UUID.randomUUID()}"
 }
 
-private fun tokenExchanger(token: String, audience: String): () -> String = {
+private fun tokenXExchanger(token: String, audience: String): () -> String = {
     if (isCurrentlyRunningLocally()) {
         ""
     } else {
         runBlocking { tokenXClient.tokenExchange(token, audience).access_token ?: "" }
+    }
+}
+
+private fun azureAdExchanger(scope: String): () -> String = {
+    if (isCurrentlyRunningLocally()) {
+        ""
+    } else {
+        runBlocking { azureAdClient.clientCredentials(scope).access_token ?: "" }
     }
 }
 
@@ -510,5 +552,20 @@ private val tokenXClient: CachedOauth2Client by lazy {
     CachedOauth2Client(
         tokenEndpointUrl = tokenXConfig.tokenEndpointUrl,
         authType = tokenXConfig.privateKey(),
+    )
+}
+
+private val azureAdClient: CachedOauth2Client by lazy {
+    val config = HashMap<String, String>()
+    config["AZURE_APP_CLIENT_ID"] = getEnv("AZURE_APP_CLIENT_ID") ?: ""
+    config["AZURE_APP_CLIENT_SECRET"] = getEnv("AZURE_APP_CLIENT_SECRET") ?: ""
+    config["AZURE_APP_PRIVATE_JWK"] = getEnv("AZURE_APP_PRIVATE_JWK") ?: ""
+    config["AZURE_OPENID_CONFIG_TOKEN_ENDPOINT"] = getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: ""
+    config["AZURE_APP_WELL_KNOWN_URL"] = getEnv("AZURE_APP_WELL_KNOWN_URL") ?: ""
+
+    val azureAdConfig = OAuth2Config.AzureAd(config)
+    CachedOauth2Client(
+        tokenEndpointUrl = azureAdConfig.tokenEndpointUrl,
+        authType = azureAdConfig.clientSecret(),
     )
 }
