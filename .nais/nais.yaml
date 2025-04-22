@@ -51,6 +51,7 @@ spec:
     inbound:
       rules:
         - application: dp-rapportering
+        - application: dp-rapportering-personregister
         - application: tokenx-token-generator
           namespace: aura
           cluster: dev-gcp
