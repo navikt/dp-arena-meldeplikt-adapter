@@ -57,13 +57,23 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/hardpmeldeplikt") {
             get {
                 try {
-                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(
-                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
-                    )
+                    val ident = call.request.headers["ident"]
+
+                    val response = if (ident != null) {
+                        val tokenProvider = azureAdExchanger(getEnv("MELDEKORTKONTROLL_AUDIENCE")?.replace(":", ".") ?: "")
+                        val token = tokenProvider.invoke()
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(httpClient, token, ident, callId, "/v2/meldegrupper")
+                        )
+                    } else {
+                        val authString = call.request.header(HttpHeaders.Authorization)
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
+                        )
+                    }
 
                     val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
 
@@ -415,23 +425,11 @@ private suspend fun sendHttpRequestWithRetry(
 
 private fun sendHttpRequestTilMeldekortservice(
     httpClient: HttpClient,
-    authString: String?,
+    token: String,
+    ident: String,
     callId: String,
     path: String
 ): () -> HttpResponse = {
-    val incomingToken = authString?.replace("Bearer ", "") ?: ""
-    val decodedToken = decodeToken(authString)
-    val ident = extractSubject(decodedToken)
-
-    var token = ""
-    if (ident?.length == 11) {
-        val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
-        token = tokenProvider.invoke()
-    } else {
-        val tokenProvider = azureAdExchanger(getEnv("MELDEKORTKONTROLL_AUDIENCE")?.replace(":", ".") ?: "")
-        token = tokenProvider.invoke()
-    }
-
     runBlocking {
         httpClient.get(getEnv("MELDEKORTSERVICE_URL") + path) {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -440,6 +438,22 @@ private fun sendHttpRequestTilMeldekortservice(
             header("ident", ident)
         }
     }
+}
+
+private fun sendHttpRequestTilMeldekortservice(
+    httpClient: HttpClient,
+    authString: String?,
+    callId: String,
+    path: String
+): () -> HttpResponse = {
+    val incomingToken = authString?.replace("Bearer ", "") ?: ""
+    val decodedToken = decodeToken(authString)
+    val ident = extractSubject(decodedToken) ?: ""
+
+    val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
+    val token = tokenProvider.invoke()
+
+    sendHttpRequestTilMeldekortservice(httpClient, token, ident, callId, path)()
 }
 
 private fun sendHttpRequestTilMeldekortkontroll(

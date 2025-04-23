@@ -14,6 +14,7 @@ open class TestBase {
     companion object {
 
         const val TOKENX_ISSUER_ID = "tokenx"
+        const val AZURE_ISSUER_ID = "azure"
         const val REQUIRED_AUDIENCE = "default"
         val TEST_PRIVATE_JWK = """
             {
@@ -68,11 +69,18 @@ open class TestBase {
         System.setProperty("TOKEN_X_PRIVATE_JWK", TEST_PRIVATE_JWK)
         System.setProperty("TOKEN_X_WELL_KNOWN_URL", mockOAuth2Server.wellKnownUrl(TOKENX_ISSUER_ID).toString())
 
+        System.setProperty("AZURE_APP_CLIENT_ID", AZURE_ISSUER_ID)
+        System.setProperty("AZURE_APP_CLIENT_SECRET", "SOME_SECRET")
+        System.setProperty("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT", mockOAuth2Server.tokenEndpointUrl(AZURE_ISSUER_ID).toString())
+
         return MapApplicationConfig(
-            "no.nav.security.jwt.issuers.size" to "1",
+            "no.nav.security.jwt.issuers.size" to "2",
             "no.nav.security.jwt.issuers.0.issuer_name" to TOKENX_ISSUER_ID,
             "no.nav.security.jwt.issuers.0.discoveryurl" to mockOAuth2Server.wellKnownUrl(TOKENX_ISSUER_ID).toString(),
             "no.nav.security.jwt.issuers.0.accepted_audience" to REQUIRED_AUDIENCE,
+            "no.nav.security.jwt.issuers.1.issuer_name" to AZURE_ISSUER_ID,
+            "no.nav.security.jwt.issuers.1.discoveryurl" to mockOAuth2Server.wellKnownUrl(AZURE_ISSUER_ID).toString(),
+            "no.nav.security.jwt.issuers.1.accepted_audience" to REQUIRED_AUDIENCE,
             "ktor.environment" to "local"
         )
     }

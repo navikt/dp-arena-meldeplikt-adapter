@@ -304,6 +304,55 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
+    fun testHarDpMeldepliktMedDAGPOgIdentIHeader() = setUpTestApplication {
+        val meldegrupper = listOf(
+            Meldegruppe(
+                "01020312345",
+                "ARBS",
+                LocalDate.now(),
+                null,
+                LocalDate.now(),
+                "J",
+                "Aktivert med ingen ytelser",
+                null
+            ),
+            Meldegruppe(
+                "01020312345",
+                "DAGP",
+                LocalDate.now(),
+                LocalDate.now(),
+                LocalDate.now(),
+                "J",
+                "Iverksatt vedtak",
+                1L
+            )
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/meldegrupper") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                    }
+                }
+            }
+        }
+
+        val token = issueToken("01020312345")
+
+        val response = client.get("/hardpmeldeplikt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            header("ident", "01020312345")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("true", response.bodyAsText())
+    }
+
+    @Test
     fun testHarMeldepliktUtenToken() = setUpTestApplication {
         val response = client.get("/harmeldeplikt") {
             header(HttpHeaders.Accept, ContentType.Application.Json)
