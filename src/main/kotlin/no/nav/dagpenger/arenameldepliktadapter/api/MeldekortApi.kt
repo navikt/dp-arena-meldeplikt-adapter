@@ -63,7 +63,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val ident = call.request.headers["ident"]
 
                     val response = if (ident != null) {
-                        val tokenProvider = azureAdExchanger(getEnv("MELDEKORTKONTROLL_AUDIENCE")?.replace(":", ".") ?: "")
+                        val scope = "api://" + getEnv("MELDEKORTKONTROLL_AUDIENCE")?.replace(":", ".") + "/.default"
+                        val tokenProvider = azureAdExchanger(scope)
                         val token = tokenProvider.invoke()
                         sendHttpRequestWithRetry(
                             sendHttpRequestTilMeldekortservice(httpClient, token, ident, callId, "/v2/meldegrupper")
