@@ -173,7 +173,7 @@ class MeldekortApiTest : TestBase() {
     fun testKasterExceptionHvisIkkeKanHenteResponse() = setUpTestApplication {
         // Setter ikke ExternalServices
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -196,7 +196,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -221,7 +221,7 @@ class MeldekortApiTest : TestBase() {
     fun testHarDpMeldepliktMedDAGP() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
-                "01020312345",
+                ident,
                 "ARBS",
                 LocalDate.now(),
                 null,
@@ -231,7 +231,7 @@ class MeldekortApiTest : TestBase() {
                 null
             ),
             Meldegruppe(
-                "01020312345",
+                ident,
                 "DAGP",
                 LocalDate.now(),
                 LocalDate.now(),
@@ -253,7 +253,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/hardpmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -269,7 +269,7 @@ class MeldekortApiTest : TestBase() {
     fun testHarDpMeldepliktUtenDAGP() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
-                "01020312345",
+                ident,
                 "ARBS",
                 LocalDate.now(),
                 null,
@@ -291,7 +291,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/hardpmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -307,17 +307,7 @@ class MeldekortApiTest : TestBase() {
     fun testHarDpMeldepliktMedDAGPOgIdentIHeader() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
-                "01020312345",
-                "ARBS",
-                LocalDate.now(),
-                null,
-                LocalDate.now(),
-                "J",
-                "Aktivert med ingen ytelser",
-                null
-            ),
-            Meldegruppe(
-                "01020312345",
+                ident,
                 "DAGP",
                 LocalDate.now(),
                 LocalDate.now(),
@@ -339,13 +329,13 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/hardpmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
-            header("ident", "01020312345")
+            header("ident", ident)
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -366,7 +356,7 @@ class MeldekortApiTest : TestBase() {
     fun testHarMeldepliktTrue() = setUpTestApplication {
         val meldegrupper = listOf(
             Meldegruppe(
-                "01020312345",
+                ident,
                 "ARBS",
                 LocalDate.now(),
                 null,
@@ -388,7 +378,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/harmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -415,7 +405,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/harmeldeplikt") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -449,7 +439,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -473,7 +463,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/rapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -525,7 +515,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/person") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -570,7 +560,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -683,7 +673,7 @@ class MeldekortApiTest : TestBase() {
             }
         }
 
-        val token = issueToken("01020312345")
+        val token = issueToken(ident)
 
         val response = client.get("/endrerapporteringsperiode/1234567890") {
             header(HttpHeaders.Authorization, "Bearer $token")
