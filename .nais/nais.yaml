@@ -6,7 +6,7 @@ metadata:
   labels:
     team: teamdagpenger
 spec:
-  image: {{ image }}
+  image: "{{ image }}"
   port: 8080
   prometheus:
     enabled: true
@@ -34,11 +34,11 @@ spec:
     - name: MELDEKORTSERVICE_URL
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
     - name: MELDEKORTSERVICE_AUDIENCE
-      value: {{ meldekortserviceAudience }}
+      value: "{{ meldekortserviceAudience }}"
     - name: MELDEKORTKONTROLL_URL
       value: 'https://{{ meldekortkontrollHost }}/api/v1/kontroll'
     - name: MELDEKORTKONTROLL_AUDIENCE
-      value: {{ meldekortkontrollAudience }}
+      value: "{{ meldekortkontrollAudience }}"
     - name: JDK_JAVA_OPTIONS # Bytter GC og lar JVMen se at det er flere CPU kjerner
       value: -XX:+UseParallelGC -XX:ActiveProcessorCount=4
   tokenx:
@@ -60,5 +60,5 @@ spec:
           cluster: dev-gcp
     outbound:
       external:
-        - host: {{ meldekortserviceHost }}
-        - host: {{ meldekortkontrollHost }}
+        - host: "{{ meldekortserviceHost }}"
+        - host: "{{ meldekortkontrollHost }}"
