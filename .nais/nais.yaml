@@ -62,3 +62,11 @@ spec:
       external:
         - host: "{{ meldekortserviceHost }}"
         - host: "{{ meldekortkontrollHost }}"
+  observability:
+    logging:
+      destinations:
+        - id: loki
+        - id: elastic
+    autoInstrumentation:
+      enabled: true
+      runtime: java
