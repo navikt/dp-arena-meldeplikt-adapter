@@ -27,7 +27,7 @@ plugins {
     application
 
     // Apply the Ktor plugin to create the application distribution
-    id("io.ktor.plugin") version "3.1.3"
+    id("io.ktor.plugin") version "3.2.0"
 }
 
 application {
