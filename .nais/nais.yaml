@@ -30,6 +30,7 @@ spec:
     {{/each}}
   secureLogs:
     enabled: true
+
   env:
     - name: MELDEKORTSERVICE_URL
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'

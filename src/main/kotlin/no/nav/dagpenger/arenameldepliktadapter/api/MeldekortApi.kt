@@ -63,11 +63,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val ident = call.request.headers["ident"]
 
                     val response = if (ident != null) {
-                        val scope = "api://" + getEnv("MELDEKORTSERVICE_AUDIENCE")?.replace(":", ".") + "/.default"
-                        val tokenProvider = azureAdExchanger(scope)
-                        val token = tokenProvider.invoke()
                         sendHttpRequestWithRetry(
-                            sendHttpRequestTilMeldekortservice(httpClient, token, ident, callId, "/v2/meldegrupper")
+                            sendHttpRequestTilMeldekortservice(httpClient, hentAzureToken(), ident, callId, "/v2/meldegrupper")
                         )
                     } else {
                         val authString = call.request.header(HttpHeaders.Authorization)
@@ -125,10 +122,17 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
+                    val ident = call.request.headers["ident"]
 
-                    val response = sendHttpRequestWithRetry(
-                        sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
-                    )
+                    val response = if (ident != null) {
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(httpClient, hentAzureToken(), ident, callId, "/v2/meldekort")
+                        )
+                    } else {
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
+                        )
+                    }
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -210,14 +214,30 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(
-                        sendHttpRequestTilMeldekortservice(
-                            httpClient,
-                            authString,
-                            callId,
-                            "/v2/historiskemeldekort?antallMeldeperioder=10"
+                    val ident = call.request.headers["ident"]
+                    val antallMeldeperioder = call.request.headers["antallMeldeperioder"]?.toIntOrNull() ?: 10
+
+                    val response = if (ident != null) {
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(
+                                httpClient,
+                                hentAzureToken(),
+                                ident,
+                                callId,
+                                "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
+                            )
                         )
-                    )
+                    }
+                    else {
+                        sendHttpRequestWithRetry(
+                            sendHttpRequestTilMeldekortservice(
+                                httpClient,
+                                authString,
+                                callId,
+                                "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
+                            )
+                        )
+                    }
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                     // Vi tar ikke bare DAGP meldekort her, men også ARBS fordi det er naturlig å forutsette at hvis bruker har DP nå, tilhører tidligere ARBS meldekort DP
@@ -229,14 +249,26 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     }?.map { meldekort ->
                         val kanSendesFra = meldekort.tilDato.minusDays(1)
 
-                        val responseDetaljer = sendHttpRequestWithRetry(
-                            sendHttpRequestTilMeldekortservice(
-                                httpClient,
-                                authString,
-                                callId,
-                                "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                        val responseDetaljer = if (ident != null) {
+                            sendHttpRequestWithRetry(
+                                sendHttpRequestTilMeldekortservice(
+                                    httpClient,
+                                    hentAzureToken(),
+                                    ident,
+                                    callId,
+                                    "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                                )
                             )
-                        )
+                        } else {
+                            sendHttpRequestWithRetry(
+                                sendHttpRequestTilMeldekortservice(
+                                    httpClient,
+                                    authString,
+                                    callId,
+                                    "/v2/meldekortdetaljer?meldekortId=${meldekort.meldekortId}"
+                                )
+                            )
+                        }
                         val meldekortdetaljer = defaultObjectMapper.readValue<Meldekortdetaljer>(
                             responseDetaljer.bodyAsText()
                         )
@@ -397,6 +429,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
             }
         }
     }
+}
+
+private fun hentAzureToken(): String {
+    val scope = "api://" + getEnv("MELDEKORTSERVICE_AUDIENCE")?.replace(":", ".") + "/.default"
+    val tokenProvider = azureAdExchanger(scope)
+    return tokenProvider.invoke()
 }
 
 private suspend fun sendHttpRequestWithRetry(
