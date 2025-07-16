@@ -119,12 +119,14 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/rapporteringsperioder") {
             get {
                 try {
+                    logger.info { "Henter rapporteringsperioder" }
                     val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
                     val ident = call.request.headers["ident"]
 
                     val response = if (ident != null) {
+                        logger.info { "Ident var ikke null, så henter rapporteringsperioder med azure token" }
                         sendHttpRequestWithRetry(
                             sendHttpRequestTilMeldekortservice(httpClient, hentAzureToken(), ident, callId, "/v2/meldekort")
                         )
@@ -210,14 +212,16 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
         route("/sendterapporteringsperioder") {
             get {
                 try {
+                    logger.info { "Henter rapporteringsperioder" }
                     val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
                     val ident = call.request.headers["ident"]
-                    val antallMeldeperioder = call.request.headers["antallMeldeperioder"]?.toIntOrNull() ?: 10
+                    val antallMeldeperioder = call.request.queryParameters["antallMeldeperioder"]?.toIntOrNull() ?: 10
 
                     val response = if (ident != null) {
+                        logger.info { "Ident var ikke null, så henter historiske meldekort med azure token" }
                         sendHttpRequestWithRetry(
                             sendHttpRequestTilMeldekortservice(
                                 httpClient,
@@ -432,6 +436,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 }
 
 private fun hentAzureToken(): String {
+    logger.info("Henter AzureToken")
     val scope = "api://" + getEnv("MELDEKORTSERVICE_AUDIENCE")?.replace(":", ".") + "/.default"
     val tokenProvider = azureAdExchanger(scope)
     return tokenProvider.invoke()
