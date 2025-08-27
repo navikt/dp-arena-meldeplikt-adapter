@@ -22,12 +22,15 @@ import no.nav.dagpenger.arenameldepliktadapter.models.KortType
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldestatusRequest
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldestatusResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.test.Test
@@ -817,5 +820,123 @@ class MeldekortApiTest : TestBase() {
         assertEquals(false, meldekortkontrollRequest.meldekortdager[13].kurs)
         assertEquals(false, meldekortkontrollRequest.meldekortdager[13].syk)
         assertEquals(false, meldekortkontrollRequest.meldekortdager[13].annetFravaer)
+    }
+
+    @Test
+    fun testHentMeldestatusUtenToken() = setUpTestApplication {
+        val response = client.post("/meldestatus") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun testHentMeldestatusMedUgildigIdent() = setUpTestApplication {
+        val meldekortstatusRequest = MeldestatusRequest(
+            null,
+            "test",
+            null,
+        )
+
+        val response = client.post("/meldestatus") {
+            header(HttpHeaders.Authorization, "Bearer ${issueToken(ident)}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(defaultObjectMapper.writeValueAsString(meldekortstatusRequest))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun testHentMeldestatusMedTommeIdentOgArenaId() = setUpTestApplication {
+        val meldekortstatusRequest = MeldestatusRequest(
+            null,
+            null,
+            null,
+        )
+
+        val response = client.post("/meldestatus") {
+            header(HttpHeaders.Authorization, "Bearer ${issueToken(ident)}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(defaultObjectMapper.writeValueAsString(meldekortstatusRequest))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun testHentMeldestatusReturnsData() = setUpTestApplication {
+        val arenaPersonId = 123456789L
+
+        val meldekortstatusRequest = MeldestatusRequest(
+            arenaPersonId,
+            ident,
+            LocalDate.now(),
+        )
+
+        val meldestatusResponse = MeldestatusResponse(
+            arenaPersonId,
+            ident,
+            "DAGP",
+            true,
+            listOf(
+                MeldestatusResponse.Meldeplikt(
+                    true,
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now().minusDays(10),
+                    ),
+                    "",
+                    MeldestatusResponse.Endring(
+                        "R123456",
+                        LocalDateTime.now().minusDays(7),
+                        "E654321",
+                        LocalDateTime.now()
+                    ),
+                )
+            ),
+            listOf(
+                MeldestatusResponse.Meldegruppe(
+                    "ATTF",
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now().minusDays(10),
+                    ),
+                    "Bla bla",
+                    MeldestatusResponse.Endring(
+                        "R123456",
+                        LocalDateTime.now().minusDays(7),
+                        "E654321",
+                        LocalDateTime.now()
+                    ),
+                )
+            )
+        )
+
+        var request: MeldestatusRequest? = null
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    post("/v2/meldestatus") {
+                        request = defaultObjectMapper.readValue<MeldestatusRequest>(call.receiveText())
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatusResponse))
+                    }
+                }
+            }
+        }
+
+        val response = client.post("/meldestatus") {
+            header(HttpHeaders.Authorization, "Bearer ${issueToken(ident)}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(defaultObjectMapper.writeValueAsString(meldekortstatusRequest))
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(meldekortstatusRequest, request)
+        assertEquals(meldestatusResponse, defaultObjectMapper.readValue<MeldestatusResponse>(response.bodyAsText()))
     }
 }
