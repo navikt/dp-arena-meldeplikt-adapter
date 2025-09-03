@@ -851,6 +851,33 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
+    fun testHentMeldestatusNoContent() = setUpTestApplication {
+        val meldekortstatusRequest = MeldestatusRequest(
+            personident = ident,
+        )
+
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    post("/v2/meldestatus") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+        }
+
+        val response = client.post("/meldestatus") {
+            header(HttpHeaders.Authorization, "Bearer ${issueToken(ident)}")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(defaultObjectMapper.writeValueAsString(meldekortstatusRequest))
+        }
+
+        assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
+    @Test
     fun testHentMeldestatusMedTommeIdentOgArenaId() = setUpTestApplication {
         val meldekortstatusRequest = MeldestatusRequest(
             null,

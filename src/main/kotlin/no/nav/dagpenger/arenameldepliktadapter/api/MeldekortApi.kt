@@ -484,7 +484,8 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
 
                     call.respondText(
                         response.bodyAsText(),
-                        ContentType.Application.Json
+                        ContentType.Application.Json,
+                        response.status
                     )
                 } catch (e: Exception) {
                     logger.error(e) { "Feil ved henting av meldestatus" }
