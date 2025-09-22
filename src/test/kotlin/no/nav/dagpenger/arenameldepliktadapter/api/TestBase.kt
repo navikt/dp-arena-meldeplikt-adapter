@@ -64,7 +64,9 @@ open class TestBase {
 
     private fun setOidcConfig(): MapApplicationConfig {
         System.setProperty("MELDEKORTSERVICE_URL", "https://meldekortservice")
+        System.setProperty("MELDEKORTSERVICE_AUDIENCE", "test:meldekort:meldekortservice")
         System.setProperty("MELDEKORTKONTROLL_URL", "https://meldekortkontroll-api")
+        System.setProperty("MELDEKORTKONTROLL_AUDIENCE", "test:meldekort:meldekortkontroll-api")
         System.setProperty("TOKEN_X_CLIENT_ID", TOKENX_ISSUER_ID)
         System.setProperty("TOKEN_X_PRIVATE_JWK", TEST_PRIVATE_JWK)
         System.setProperty("TOKEN_X_WELL_KNOWN_URL", mockOAuth2Server.wellKnownUrl(TOKENX_ISSUER_ID).toString())
