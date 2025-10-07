@@ -30,13 +30,13 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.KortType
-import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollFravaer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldestatusRequest
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldestatusResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
@@ -49,6 +49,7 @@ import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningLocally
 import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
@@ -61,31 +62,53 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val ident = call.request.headers["ident"]
+                    val identFromHeader = call.request.headers["ident"]
+                    var ident: String
+                    var token: String
 
-                    val response = if (ident != null) {
-                        sendHttpRequestWithRetry(
-                            sendGetRequestTilMeldekortservice(
-                                httpClient,
-                                hentAzureToken(),
-                                ident,
-                                callId,
-                                "/v2/meldegrupper"
-                            )
-                        )
+                    if (identFromHeader.isNullOrBlank()) {
+                        val pair = hentTokenX(call.request.headers["Authorization"])
+                        ident = pair.first
+                        token = pair.second
                     } else {
-                        val authString = call.request.header(HttpHeaders.Authorization)
-                        sendHttpRequestWithRetry(
-                            sendGetRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
-                        )
+                        ident = identFromHeader
+                        token = hentAzureToken()
                     }
 
-                    val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
+                    val request = MeldestatusRequest(
+                        personident = ident
+                    )
+
+                    val response = sendHttpRequestWithRetry(
+                        sendPostRequestTilMeldekortservice(
+                            httpClient,
+                            token,
+                            null,
+                            callId,
+                            "/v2/meldestatus",
+                            defaultObjectMapper.writeValueAsString(request)
+                        )
+                    )
+
+                    val meldestatus = defaultObjectMapper.readValue<MeldestatusResponse>(response.bodyAsText())
+                    val meldegruppeListe =
+                        meldestatus.meldegruppeListe?.sortedBy { it.meldegruppeperiode?.fom } ?: emptyList()
 
                     var harMeldeplikt = "false"
+                    val now = LocalDateTime.now()
 
-                    if (meldegrupper.any { meldegruppe -> meldegruppe.meldegruppeKode == "DAGP" }) {
-                        harMeldeplikt = "true"
+                    meldegruppeListe.forEach {
+                        if (it.meldegruppe == "DAGP"
+                            && it.meldegruppeperiode != null
+                            && (it.meldegruppeperiode.fom.isBefore(now) || it.meldegruppeperiode.fom.isEqual(now))
+                            && (
+                                    it.meldegruppeperiode.tom == null
+                                            || it.meldegruppeperiode.tom.isAfter(now)
+                                            || it.meldegruppeperiode.tom.isEqual(now)
+                                    )
+                        ) {
+                            harMeldeplikt = "true"
+                        }
                     }
 
                     call.respondText(harMeldeplikt)
@@ -103,16 +126,42 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
-                    val response = sendHttpRequestWithRetry(
-                        sendGetRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldegrupper")
+                    val (ident, token) = hentTokenX(authString)
+
+                    val request = MeldestatusRequest(
+                        personident = ident
                     )
 
-                    val meldegrupper = defaultObjectMapper.readValue<List<Meldegruppe>>(response.bodyAsText())
+                    val response = sendHttpRequestWithRetry(
+                        sendPostRequestTilMeldekortservice(
+                            httpClient,
+                            token,
+                            null,
+                            callId,
+                            "/v2/meldestatus",
+                            defaultObjectMapper.writeValueAsString(request)
+                        )
+                    )
+
+                    val meldestatus = defaultObjectMapper.readValue<MeldestatusResponse>(response.bodyAsText())
+                    val meldepliktListe =
+                        meldestatus.meldepliktListe?.sortedBy { it.meldepliktperiode?.fom } ?: emptyList()
 
                     var harMeldeplikt = "false"
+                    val now = LocalDateTime.now()
 
-                    if (meldegrupper.isNotEmpty()) {
-                        harMeldeplikt = "true"
+                    meldepliktListe.forEach {
+                        if (it.meldeplikt
+                            && it.meldepliktperiode != null
+                            && (it.meldepliktperiode.fom.isBefore(now) || it.meldepliktperiode.fom.isEqual(now))
+                            && (
+                                    it.meldepliktperiode.tom == null
+                                            || it.meldepliktperiode.tom.isAfter(now)
+                                            || it.meldepliktperiode.tom.isEqual(now)
+                                    )
+                        ) {
+                            harMeldeplikt = "true"
+                        }
                     }
 
                     call.respondText(harMeldeplikt)
@@ -496,6 +545,17 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     }
 }
 
+private fun hentTokenX(authString: String?): Pair<String, String> {
+    val incomingToken = authString?.replace("Bearer ", "") ?: ""
+    val decodedToken = decodeToken(authString)
+    val ident = extractSubject(decodedToken) ?: ""
+
+    val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
+    val token = tokenProvider.invoke()
+
+    return Pair(ident, token)
+}
+
 private fun hentAzureToken(): String {
     logger.info("Henter AzureToken")
     val scope = "api://" + getEnv("MELDEKORTSERVICE_AUDIENCE")?.replace(":", ".") + "/.default"
@@ -551,12 +611,7 @@ private fun sendGetRequestTilMeldekortservice(
     callId: String,
     path: String
 ): () -> HttpResponse = {
-    val incomingToken = authString?.replace("Bearer ", "") ?: ""
-    val decodedToken = decodeToken(authString)
-    val ident = extractSubject(decodedToken) ?: ""
-
-    val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
-    val token = tokenProvider.invoke()
+    val (ident, token) = hentTokenX(authString)
 
     sendGetRequestTilMeldekortservice(httpClient, token, ident, callId, path)()
 }

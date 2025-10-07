@@ -19,7 +19,6 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.KortType
-import no.nav.dagpenger.arenameldepliktadapter.models.Meldegruppe
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldestatusRequest
@@ -222,35 +221,37 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testHarDpMeldepliktMedDAGP() = setUpTestApplication {
-        val meldegrupper = listOf(
-            Meldegruppe(
-                ident,
-                "ARBS",
-                LocalDate.now(),
-                null,
-                LocalDate.now(),
-                "J",
-                "Aktivert med ingen ytelser",
-                null
-            ),
-            Meldegruppe(
-                ident,
-                "DAGP",
-                LocalDate.now(),
-                LocalDate.now(),
-                LocalDate.now(),
-                "J",
-                "Iverksatt vedtak",
-                1L
+        val meldestatus = MeldestatusResponse(
+            arenaPersonId = 1L,
+            personIdent = ident,
+            formidlingsgruppe = "DAGP",
+            harMeldtSeg = true,
+            meldepliktListe = emptyList(),
+            meldegruppeListe = listOf(
+                MeldestatusResponse.Meldegruppe(
+                    "ARBS",
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now().minusDays(15),
+                        LocalDateTime.now().minusDays(1)
+                    ),
+                    "Iverksatt vedtak"
+                ),
+                MeldestatusResponse.Meldegruppe(
+                    "DAGP",
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now()
+                    ),
+                    "Iverksatt vedtak"
+                )
             )
         )
 
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
-                    get("/v2/meldegrupper") {
+                    post("/v2/meldestatus") {
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatus))
                     }
                 }
             }
@@ -270,25 +271,29 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testHarDpMeldepliktUtenDAGP() = setUpTestApplication {
-        val meldegrupper = listOf(
-            Meldegruppe(
-                ident,
-                "ARBS",
-                LocalDate.now(),
-                null,
-                LocalDate.now(),
-                "J",
-                "Aktivert med ingen ytelser",
-                null
+        val meldestatus = MeldestatusResponse(
+            arenaPersonId = 1L,
+            personIdent = ident,
+            formidlingsgruppe = "DAGP",
+            harMeldtSeg = true,
+            meldepliktListe = emptyList(),
+            meldegruppeListe = listOf(
+                MeldestatusResponse.Meldegruppe(
+                    "ARBS",
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now().minusDays(15),
+                    ),
+                    "Iverksatt vedtak"
+                )
             )
         )
 
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
-                    get("/v2/meldegrupper") {
+                    post("/v2/meldestatus") {
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatus))
                     }
                 }
             }
@@ -308,25 +313,30 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testHarDpMeldepliktMedDAGPOgIdentIHeader() = setUpTestApplication {
-        val meldegrupper = listOf(
-            Meldegruppe(
-                ident,
-                "DAGP",
-                LocalDate.now(),
-                LocalDate.now(),
-                LocalDate.now(),
-                "J",
-                "Iverksatt vedtak",
-                1L
+        val meldestatus = MeldestatusResponse(
+            arenaPersonId = 1L,
+            personIdent = ident,
+            formidlingsgruppe = "DAGP",
+            harMeldtSeg = true,
+            meldepliktListe = emptyList(),
+            meldegruppeListe = listOf(
+                MeldestatusResponse.Meldegruppe(
+                    "DAGP",
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now(),
+                        LocalDateTime.now().plusDays(10)
+                    ),
+                    "Iverksatt vedtak"
+                )
             )
         )
 
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
-                    get("/v2/meldegrupper") {
+                    post("/v2/meldestatus") {
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatus))
                     }
                 }
             }
@@ -357,25 +367,30 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testHarMeldepliktTrue() = setUpTestApplication {
-        val meldegrupper = listOf(
-            Meldegruppe(
-                ident,
-                "ARBS",
-                LocalDate.now(),
-                null,
-                LocalDate.now(),
-                "J",
-                "Aktivert med ingen ytelser",
-                null
+        val meldestatus = MeldestatusResponse(
+            arenaPersonId = 1L,
+            personIdent = ident,
+            formidlingsgruppe = "DAGP",
+            harMeldtSeg = true,
+            meldepliktListe = listOf(
+                MeldestatusResponse.Meldeplikt(
+                    true,
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now(),
+                        LocalDateTime.now().plusDays(10)
+                    ),
+                    "Iverksatt vedtak"
+                )
             ),
+            meldegruppeListe = emptyList()
         )
 
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
-                    get("/v2/meldegrupper") {
+                    post("/v2/meldestatus") {
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatus))
                     }
                 }
             }
@@ -395,14 +410,29 @@ class MeldekortApiTest : TestBase() {
 
     @Test
     fun testHarMeldepliktFalse() = setUpTestApplication {
-        val meldegrupper = emptyList<Meldegruppe>()
+        val meldestatus = MeldestatusResponse(
+            arenaPersonId = 1L,
+            personIdent = ident,
+            formidlingsgruppe = "DAGP",
+            harMeldtSeg = true,
+            meldepliktListe = listOf(
+                MeldestatusResponse.Meldeplikt(
+                    false,
+                    MeldestatusResponse.Periode(
+                        LocalDateTime.now(),
+                    ),
+                    "Iverksatt vedtak"
+                )
+            ),
+            meldegruppeListe = emptyList()
+        )
 
         externalServices {
             hosts("https://meldekortservice") {
                 routing {
-                    get("/v2/meldegrupper") {
+                    post("/v2/meldestatus") {
                         call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(defaultObjectMapper.writeValueAsString(meldegrupper))
+                        call.respond(defaultObjectMapper.writeValueAsString(meldestatus))
                     }
                 }
             }
