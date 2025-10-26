@@ -21,7 +21,7 @@ sourceSets {
 
 plugins {
     // Apply the org.jetbrains.kotlin.jvm plugin to add support for Kotlin.
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.2.21"
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
