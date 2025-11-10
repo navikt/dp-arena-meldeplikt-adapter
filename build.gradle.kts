@@ -3,7 +3,7 @@ val jacksonVersion = "2.20.1"
 val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.5.20"
 val logstashEncoderVersion = "9.0"
-val mockOauthVersion = "3.0.0"
+val mockOauthVersion = "3.0.1"
 val mockkVersion = "1.14.6"
 
 project.setProperty("mainClassName", "io.ktor.server.cio.EngineMain")
