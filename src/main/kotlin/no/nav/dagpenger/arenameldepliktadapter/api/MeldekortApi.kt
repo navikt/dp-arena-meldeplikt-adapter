@@ -303,6 +303,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             )
                         )
                     }
+
+                    if (response.status == HttpStatusCode.NoContent) {
+                        call.response.status(HttpStatusCode.NoContent)
+                        return@get
+                    }
+
                     val person = defaultObjectMapper.readValue<Person>(response.bodyAsText())
 
                     // Vi tar ikke bare DAGP meldekort her, men også ARBS fordi det er naturlig å forutsette at hvis bruker har DP nå, tilhører tidligere ARBS meldekort DP
@@ -569,6 +575,8 @@ private suspend fun sendHttpRequestWithRetry(
     var retries = 0
     var response: HttpResponse?
 
+    val okStatuses = arrayOf(HttpStatusCode.OK, HttpStatusCode.NoContent)
+
     do {
         if (retries > 0) delay(1000)
 
@@ -580,10 +588,10 @@ private suspend fun sendHttpRequestWithRetry(
         }
 
         retries++
-    } while ((response == null || response.status != HttpStatusCode.OK) && retries < 3)
+    } while ((response == null || response.status !in okStatuses) && retries < 3)
 
     if (response == null) throw Exception("Kunne ikke få response etter $retries forsøk")
-    if (response.status.value > 300) throw Exception("Uforventet HTTP status ${response.status.value} etter $retries forsøk")
+    if (response.status !in okStatuses) throw Exception("Uforventet HTTP status ${response.status.value} etter $retries forsøk")
 
     return response
 }

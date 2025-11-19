@@ -577,6 +577,29 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
+    fun testSendteRapporteringsperioderUtenMeldeplikt() = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/historiskemeldekort") {
+                        call.response.status(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+        }
+
+        val token = issueToken(ident)
+
+        val response = client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
+    @Test
     fun testSendteRapporteringsperioder() = setUpTestApplication {
         externalServices {
             hosts("https://meldekortservice") {
