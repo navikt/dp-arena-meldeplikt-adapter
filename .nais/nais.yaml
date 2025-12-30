@@ -28,8 +28,6 @@ spec:
     {{#each ingresses as |url|}}
      - {{ url }}
     {{/each}}
-  secureLogs:
-    enabled: true
   env:
     - name: MELDEKORTSERVICE_URL
       value: 'https://{{ meldekortserviceHost }}/meldekortservice/api'
