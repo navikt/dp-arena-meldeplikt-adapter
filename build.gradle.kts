@@ -6,8 +6,6 @@ val logstashEncoderVersion = "9.0"
 val mockOauthVersion = "3.0.1"
 val mockkVersion = "1.14.7"
 
-project.setProperty("mainClassName", "io.ktor.server.cio.EngineMain")
-
 sourceSets {
     this.getByName("main") {
         this.kotlin.srcDir("src/main/kotlin")
@@ -32,7 +30,7 @@ plugins {
 
 application {
     // Define the main class for the application
-    mainClass.set(project.property("mainClassName").toString())
+    mainClass.set("io.ktor.server.cio.EngineMain")
 }
 
 repositories {
@@ -95,7 +93,7 @@ tasks {
         systemProperties["AZURE_APP_CLIENT_ID"] = "test:meldekort:meldekortservice"
         systemProperties["MELDEKORTSERVICE_URL"] = "http://127.0.0.1:8090/meldekortservice/api"
 
-        mainClass.set(project.property("mainClassName").toString())
+        mainClass.set(application.mainClass.get())
         classpath = sourceSets["main"].runtimeClasspath
     }
 }
