@@ -41,6 +41,7 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
+import no.nav.dagpenger.arenameldepliktadapter.utils.UUIDv7
 import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
@@ -50,7 +51,6 @@ import no.nav.dagpenger.oauth2.CachedOauth2Client
 import no.nav.dagpenger.oauth2.OAuth2Config
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
@@ -686,7 +686,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
         if (dag.arbeidetTimerSum != null && dag.arbeidetTimerSum > 0) {
             (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                 Aktivitet(
-                    UUID.randomUUID(),
+                    UUIDv7.newUuid(),
                     Aktivitet.AktivitetsType.Arbeid,
                     dag.arbeidetTimerSum.toDouble()
                 )
@@ -695,7 +695,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
         if (dag.syk == true) {
             (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                 Aktivitet(
-                    UUID.randomUUID(),
+                    UUIDv7.newUuid(),
                     Aktivitet.AktivitetsType.Syk,
                     null
                 )
@@ -704,7 +704,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
         if (dag.kurs == true) {
             (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                 Aktivitet(
-                    UUID.randomUUID(),
+                    UUIDv7.newUuid(),
                     Aktivitet.AktivitetsType.Utdanning,
                     null
                 )
@@ -713,7 +713,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
         if (dag.annetFravaer == true) {
             (aktivitetsdager[dag.dag - 1].aktiviteter as MutableList).add(
                 Aktivitet(
-                    UUID.randomUUID(),
+                    UUIDv7.newUuid(),
                     Aktivitet.AktivitetsType.Fravaer,
                     null
                 )
@@ -725,7 +725,7 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
 }
 
 private fun getcallId(headers: Headers): String {
-    return headers[HttpHeaders.XRequestId] ?: "dp-adapter-${UUID.randomUUID()}"
+    return headers[HttpHeaders.XRequestId] ?: "dp-adapter-${UUIDv7.newUuid()}"
 }
 
 private fun tokenXExchanger(token: String, audience: String): () -> String = {
