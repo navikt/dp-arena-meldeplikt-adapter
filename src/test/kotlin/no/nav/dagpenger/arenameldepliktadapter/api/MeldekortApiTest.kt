@@ -27,11 +27,11 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Periode
 import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
+import no.nav.dagpenger.arenameldepliktadapter.utils.UUIDv7
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -759,10 +759,10 @@ class MeldekortApiTest : TestBase() {
                 Dag(
                     LocalDate.now().plusDays(i.toLong()),
                     when (i) {
-                        0 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Arbeid, 7.5))
-                        4 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Fravaer, null))
-                        7 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Utdanning, null))
-                        11 -> listOf(Aktivitet(UUID.randomUUID(), Aktivitet.AktivitetsType.Syk, null))
+                        0 -> listOf(Aktivitet(UUIDv7.newUuid(), Aktivitet.AktivitetsType.Arbeid, 7.5))
+                        4 -> listOf(Aktivitet(UUIDv7.newUuid(), Aktivitet.AktivitetsType.Fravaer, null))
+                        7 -> listOf(Aktivitet(UUIDv7.newUuid(), Aktivitet.AktivitetsType.Utdanning, null))
+                        11 -> listOf(Aktivitet(UUIDv7.newUuid(), Aktivitet.AktivitetsType.Syk, null))
                         else -> emptyList()
                     },
                     i
