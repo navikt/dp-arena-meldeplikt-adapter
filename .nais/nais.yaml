@@ -51,6 +51,7 @@ spec:
         - application: dp-rapportering
         - application: dp-rapportering-personregister
         - application: dp-meldekortregister
+        - application: dp-datadeling
         - application: tokenx-token-generator
           namespace: aura
           cluster: dev-gcp
