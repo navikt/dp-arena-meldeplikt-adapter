@@ -1,19 +1,10 @@
 name: Build and deploy
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - 'main'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Miljø'
-        required: true
-        default: 'q2'
-        type: choice
-        options:
-          - q
-          - p
+      - main
 
 env:
   APPNAME: dp-arena-meldeplikt-adapter
@@ -21,66 +12,50 @@ env:
 
 jobs:
   build:
-    name: Build and publish Docker image
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/build-publish.yaml
     permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v6
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Build application
-        run: ./gradlew build
-
-      - name: docker-build-push
-        uses: nais/docker-build-push@v0
-        id: docker-build-push
-        with:
-          team: teamdagpenger
-          tag: ${{ github.sha }}
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-
-    outputs:
-      image: ${{ steps.docker-build-push.outputs.image }}
+      contents: "read"
+      checks: "write"
+      pull-requests: "write"
+      id-token: "write"
+    secrets: inherit
+    with:
+      push_image: ${{ github.ref == 'refs/heads/main' }} # Kjører kun push av docker image på main branch
 
   deploy-dev:
-    if: github.event.inputs.environment != 'p'
+    name: Deploy to dev
     needs: [ build ]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    environment: dev-gcp
     steps:
-      - name: Set default environment for push to main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: echo 'ENVIRONMENT=q' >> $GITHUB_ENV
       - uses: actions/checkout@v6
       - uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
-          VAR: image=${{ needs.build.outputs.image }},appName=${{ env.APPNAME }}
-          VARS: .nais/vars-dev.yaml
           RESOURCE: .nais/nais.yaml
+          VAR: image=${{ needs.build.outputs.image }}
+          VARS: .nais/vars-dev.yaml
           PRINT_PAYLOAD: true
 
   deploy-prod:
-    if: github.event.inputs.environment == 'p'
+    name: Deploy to Production
     needs: [ build ]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    environment: prod-gcp
     steps:
       - uses: actions/checkout@v6
       - uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: prod-gcp
-          VAR: image=${{ needs.build.outputs.image }},appName=${{ env.APPNAME }}
+          RESOURCE: .nais/nais.yaml,.nais/alerts.yaml
+          VAR: image=${{ needs.build.outputs.image }}
           VARS: .nais/vars-prod.yaml
-          RESOURCE: .nais/nais.yaml
           PRINT_PAYLOAD: true
