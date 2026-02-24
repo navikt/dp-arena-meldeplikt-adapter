@@ -1,0 +1,43 @@
+name: Build and Deploy Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: choice
+        default: dev
+        options:
+          - dev
+          # - prod
+        required: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-publish.yaml
+    permissions:
+      contents: "read"
+      checks: "write"
+      pull-requests: "write"
+      id-token: "write"
+    secrets: inherit
+    with:
+      push_image: true
+
+  deploy-branch:
+    name: Deploy branch
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment: ${{ inputs.environment }}-gcp
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: ${{ inputs.environment }}-gcp
+          RESOURCE: .nais/nais.yaml
+          VAR: image=${{ needs.build.outputs.image }},githubSha=${{ github.sha }}
+          VARS: .nais/vars-${{ inputs.environment }}.yaml
+          PRINT_PAYLOAD: true
