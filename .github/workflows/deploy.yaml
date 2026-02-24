@@ -6,15 +6,11 @@ on:
     branches:
       - main
 
-env:
-  APPNAME: dp-arena-meldeplikt-adapter
-  ENVIRONMENT: ${{ github.event.inputs.environment }}
-
 jobs:
   build:
     uses: ./.github/workflows/build-publish.yaml
     permissions:
-      contents: "read"
+      contents: "write"
       checks: "write"
       pull-requests: "write"
       id-token: "write"
