@@ -5,6 +5,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -15,6 +16,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
@@ -600,108 +602,26 @@ class MeldekortApiTest : TestBase() {
     }
 
     @Test
-    fun testSendteRapporteringsperioder() = setUpTestApplication {
-        externalServices {
-            hosts("https://meldekortservice") {
-                routing {
-                    get("/v2/historiskemeldekort") {
-                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(personString)
-                    }
-                    get("/v2/meldekortdetaljer") {
-                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                        call.respond(meldekortdetaljer)
-                    }
-                }
-            }
-        }
-
+    fun testSendteRapporteringsperioderUtenIdent() = testHistoriskemeldekort {
         val token = issueToken(ident)
 
-        val response = client.get("/sendterapporteringsperioder") {
+        client.get("/sendterapporteringsperioder") {
             header(HttpHeaders.Authorization, "Bearer $token")
             header(HttpHeaders.Accept, ContentType.Application.Json)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
         }
+    }
 
-        assertEquals(HttpStatusCode.OK, response.status)
+    @Test
+    fun testSendteRapporteringsperioderMedIdent() = testHistoriskemeldekort {
+        val token = issueToken(ident)
 
-        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
-        // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
-        // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
-        assertEquals(4, rapporteringsperioder.size)
-        assertEquals(1234567890, rapporteringsperioder[0].id)
-        assertEquals(1234567892, rapporteringsperioder[1].id)
-        assertEquals(1234567893, rapporteringsperioder[2].id)
-        assertEquals(1234567894, rapporteringsperioder[3].id)
-
-        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
-        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
-        assertEquals(14, rapporteringsperioder[0].dager.size)
-        assertEquals(0, rapporteringsperioder[0].dager[0].dagIndex)
-        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].dager[0].dato)
-        assertEquals(13, rapporteringsperioder[0].dager[13].dagIndex)
-        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
-        assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
-        assertEquals(false, rapporteringsperioder[0].kanSendes)
-        assertEquals(true, rapporteringsperioder[0].kanEndres)
-        assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
-        assertEquals(null, rapporteringsperioder[0].mottattDato)
-        assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
-        assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
-        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseEndring)
-
-        val aktivitetsdager = rapporteringsperioder[0].dager
-        assertEquals(14, aktivitetsdager.size)
-
-        assertEquals(0, aktivitetsdager[0].dagIndex)
-        assertEquals(13, aktivitetsdager[13].dagIndex)
-
-        assertEquals(LocalDate.parse("2024-04-08"), aktivitetsdager[0].dato)
-        assertEquals(0, aktivitetsdager[0].aktiviteter.size)
-
-        assertEquals(LocalDate.parse("2024-04-09"), aktivitetsdager[1].dato)
-        assertEquals(1, aktivitetsdager[1].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[1].aktiviteter[0].type)
-        assertEquals(7.5, aktivitetsdager[1].aktiviteter[0].timer)
-
-        assertEquals(LocalDate.parse("2024-04-10"), aktivitetsdager[2].dato)
-        assertEquals(1, aktivitetsdager[2].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[2].aktiviteter[0].type)
-        assertEquals(null, aktivitetsdager[2].aktiviteter[0].timer)
-
-        assertEquals(LocalDate.parse("2024-04-11"), aktivitetsdager[3].dato)
-        assertEquals(1, aktivitetsdager[3].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
-        assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
-
-        assertEquals(LocalDate.parse("2024-04-12"), aktivitetsdager[4].dato)
-        assertEquals(1, aktivitetsdager[4].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[4].aktiviteter[0].type)
-        assertEquals(null, aktivitetsdager[4].aktiviteter[0].timer)
-
-        assertEquals(LocalDate.parse("2024-04-13"), aktivitetsdager[5].dato)
-        assertEquals(4, aktivitetsdager[5].aktiviteter.size)
-        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[5].aktiviteter[0].type)
-        assertEquals(8.0, aktivitetsdager[5].aktiviteter[0].timer)
-        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[5].aktiviteter[1].type)
-        assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
-        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
-        assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
-        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
-        assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
-
-        assertEquals(LocalDate.parse("2024-04-21"), aktivitetsdager[13].dato)
-        assertEquals(0, aktivitetsdager[13].aktiviteter.size)
-
-        assertEquals(RapporteringsperiodeStatus.Endret, rapporteringsperioder[1].status)
-        assertEquals("2024-05-19", rapporteringsperioder[1].mottattDato?.format(DateTimeFormatter.ISO_DATE))
-
-        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[2].status)
-        assertEquals("2024-05-20", rapporteringsperioder[2].mottattDato?.format(DateTimeFormatter.ISO_DATE))
-
-        assertEquals(RapporteringsperiodeStatus.Feilet, rapporteringsperioder[3].status)
-        assertEquals("2024-06-01", rapporteringsperioder[3].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+        client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            header("ident", ident)
+        }
     }
 
     @Test
@@ -1018,5 +938,107 @@ class MeldekortApiTest : TestBase() {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(meldekortstatusRequest, request)
         assertEquals(meldestatusResponse, defaultObjectMapper.readValue<MeldestatusResponse>(response.bodyAsText()))
+    }
+
+    private fun testHistoriskemeldekort(block: suspend ApplicationTestBuilder.() -> HttpResponse) = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/historiskemeldekort") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(personString)
+                    }
+                    get("/v2/meldekortdetaljer") {
+                        call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        call.respond(meldekortdetaljer)
+                    }
+                }
+            }
+        }
+
+        val response = block()
+
+        checkResponse(response)
+    }
+
+    private suspend fun checkResponse(response: HttpResponse) {
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
+        // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
+        assertEquals(4, rapporteringsperioder.size)
+        assertEquals(1234567890, rapporteringsperioder[0].id)
+        assertEquals(1234567892, rapporteringsperioder[1].id)
+        assertEquals(1234567893, rapporteringsperioder[2].id)
+        assertEquals(1234567894, rapporteringsperioder[3].id)
+
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
+        assertEquals(14, rapporteringsperioder[0].dager.size)
+        assertEquals(0, rapporteringsperioder[0].dager[0].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].dager[0].dato)
+        assertEquals(13, rapporteringsperioder[0].dager[13].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
+        assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
+        assertEquals(false, rapporteringsperioder[0].kanSendes)
+        assertEquals(true, rapporteringsperioder[0].kanEndres)
+        assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
+        assertEquals(null, rapporteringsperioder[0].mottattDato)
+        assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
+        assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
+        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseEndring)
+
+        val aktivitetsdager = rapporteringsperioder[0].dager
+        assertEquals(14, aktivitetsdager.size)
+
+        assertEquals(0, aktivitetsdager[0].dagIndex)
+        assertEquals(13, aktivitetsdager[13].dagIndex)
+
+        assertEquals(LocalDate.parse("2024-04-08"), aktivitetsdager[0].dato)
+        assertEquals(0, aktivitetsdager[0].aktiviteter.size)
+
+        assertEquals(LocalDate.parse("2024-04-09"), aktivitetsdager[1].dato)
+        assertEquals(1, aktivitetsdager[1].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[1].aktiviteter[0].type)
+        assertEquals(7.5, aktivitetsdager[1].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-10"), aktivitetsdager[2].dato)
+        assertEquals(1, aktivitetsdager[2].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[2].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[2].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-11"), aktivitetsdager[3].dato)
+        assertEquals(1, aktivitetsdager[3].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-12"), aktivitetsdager[4].dato)
+        assertEquals(1, aktivitetsdager[4].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[4].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[4].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-13"), aktivitetsdager[5].dato)
+        assertEquals(4, aktivitetsdager[5].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[5].aktiviteter[0].type)
+        assertEquals(8.0, aktivitetsdager[5].aktiviteter[0].timer)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[5].aktiviteter[1].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
+
+        assertEquals(LocalDate.parse("2024-04-21"), aktivitetsdager[13].dato)
+        assertEquals(0, aktivitetsdager[13].aktiviteter.size)
+
+        assertEquals(RapporteringsperiodeStatus.Endret, rapporteringsperioder[1].status)
+        assertEquals("2024-05-19", rapporteringsperioder[1].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[2].status)
+        assertEquals("2024-05-20", rapporteringsperioder[2].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Feilet, rapporteringsperioder[3].status)
+        assertEquals("2024-06-01", rapporteringsperioder[3].mottattDato?.format(DateTimeFormatter.ISO_DATE))
     }
 }
