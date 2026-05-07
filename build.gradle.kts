@@ -54,7 +54,7 @@ dependencies {
 
     implementation("no.nav.security:token-validation-ktor-v3:6.0.6")
     implementation("no.nav.dagpenger:oauth2-klient:2025.11.27-14.20.4aa9aa3d3d14")
-    implementation("com.auth0:java-jwt:4.5.1")
+    implementation("com.auth0:java-jwt:4.5.2")
 
     implementation("io.github.microutils:kotlin-logging:$kotlinLoggingVersion")
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
