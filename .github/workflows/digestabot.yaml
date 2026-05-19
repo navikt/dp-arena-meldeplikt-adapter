@@ -23,13 +23,30 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           team: teamdagpenger
+          create-pr: false
+
+      - name: Create pull request for digest updates
+        if: steps.digestabot.outputs.changed_files != ''
+        id: create_pull_request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update images digests
+          title: Update images digests
+          body: Update images digests
+          labels: automated pr
+          branch: update-digests
+          signoff: true
+          sign-commits: true
+          delete-branch: true
+          add-paths: ${{ steps.digestabot.outputs.changed_files }}
 
       - name: Report check run for auto-merge
-        if: steps.digestabot.outputs.pull_request_number
+        if: steps.create_pull_request.outputs.pull-request-number
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          head_sha=$(gh pr view "${{ steps.digestabot.outputs.pull_request_number }}" --json headRefOid -q .headRefOid)
+          head_sha=$(gh pr view "${{ steps.create_pull_request.outputs.pull-request-number }}" --json headRefOid -q .headRefOid)
           gh api repos/${{ github.repository }}/check-runs \
             -f name="test" \
             -f head_sha="$head_sha" \
@@ -39,7 +56,7 @@ jobs:
             -f "output[summary]=Base image digest update - no code changes"
 
       - name: Enable auto-merge for digest updates
-        if: steps.digestabot.outputs.pull_request_number
-        run: gh pr merge --auto --squash "${{ steps.digestabot.outputs.pull_request_number }}"
+        if: steps.create_pull_request.outputs.pull-request-number
+        run: gh pr merge --auto --squash "${{ steps.create_pull_request.outputs.pull-request-number }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
