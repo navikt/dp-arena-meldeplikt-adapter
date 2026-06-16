@@ -1,0 +1,344 @@
+package no.nav.dagpenger.arenameldepliktadapter.api
+
+import com.fasterxml.jackson.module.kotlin.readValue
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.header
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
+import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
+import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
+import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
+    private val personId = 1234L
+    private val ident = "01020312345"
+    private val meldekortId = 1234567890L
+    private val personString = """
+        {
+            "personId": 5134902,
+            "etternavn": "TESTESSEN",
+            "fornavn": "TEST",
+            "maalformkode": "NO",
+            "meldeform": "EMELD",
+            "meldekortListe": [
+                {
+                    "meldekortId": $meldekortId,
+                    "kortType": "05",
+                    "meldeperiode": "202415",
+                    "fraDato": "2024-04-08",
+                    "tilDato": "2024-04-21",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "OPPRE",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567891,
+                    "kortType": "09",
+                    "meldeperiode": "202417",
+                    "fraDato": "2024-04-22",
+                    "tilDato": "2024-05-05",
+                    "hoyesteMeldegruppe": "AAP",
+                    "beregningstatus": "OPPRE",
+                    "forskudd": false,
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567892,
+                    "kortType": "05",
+                    "meldeperiode": "202419",
+                    "fraDato": "2024-05-06",
+                    "tilDato": "2024-05-19",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "OVERM",
+                    "forskudd": false,
+                    "mottattDato": "2024-05-19",
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567893,
+                    "kortType": "10",
+                    "meldeperiode": "202419",
+                    "fraDato": "2024-05-06",
+                    "tilDato": "2024-05-19",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "FERDI",
+                    "forskudd": false,
+                    "mottattDato": "2024-05-20",
+                    "bruttoBelop": 0.0
+                },
+                {
+                    "meldekortId": 1234567894,
+                    "kortType": "05",
+                    "meldeperiode": "202420",
+                    "fraDato": "2024-05-20",
+                    "tilDato": "2024-06-02",
+                    "hoyesteMeldegruppe": "ARBS",
+                    "beregningstatus": "FEIL",
+                    "forskudd": false,
+                    "mottattDato": "2024-06-01",
+                    "bruttoBelop": 0.0
+                }
+            ],
+            "fravaerListe": []
+        }
+    """.trimIndent()
+
+    private val meldekortdetaljer = """
+            {
+                "id": "",
+                "personId": $personId,
+                "fodselsnr": "$ident",
+                "meldekortId": $meldekortId,
+                "meldeperiode": "202421",
+                "meldegruppe": "",
+                "arkivnokkel": "",
+                "kortType": "KORT_TYPE",
+                "sporsmal": {
+                    "meldekortDager": [
+                        {
+                            "dag": 2,
+                            "arbeidetTimerSum": 7.5,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 3,
+                            "arbeidetTimerSum": 0,
+                            "syk": true,
+                            "annetFravaer": false,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 4,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": true,
+                            "kurs": false
+                        },
+                        {
+                            "dag": 5,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": true
+                        },
+                        {
+                            "dag": 6,
+                            "arbeidetTimerSum": 8,
+                            "syk": true,
+                            "annetFravaer": true,
+                            "kurs": true
+                        },
+                        {
+                            "dag": 14,
+                            "arbeidetTimerSum": 0,
+                            "syk": false,
+                            "annetFravaer": false,
+                            "kurs": false
+                        }
+                    ]
+                },
+                "begrunnelse": "Bla bla"
+            }
+        """.trimIndent()
+
+    @Test
+    fun `sendterapporteringsperioder uten token skal gi Unauthorized`() = setUpTestApplication {
+        val response = client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `sendterapporteringsperioder uten meldeplikt skal gi NoContent`() = setUpTestApplication {
+        externalServices {
+            hosts("https://meldekortservice") {
+                routing {
+                    get("/v2/historiskemeldekort") {
+                        call.response.status(HttpStatusCode.NoContent)
+                    }
+                }
+            }
+        }
+
+        val token = issueToken(ident)
+
+        val response = client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
+    @Test
+    fun `sendterapporteringsperioder med TokenX skal fungere`() = testSendteRapporteringsperioder {
+        val token = issueToken(ident)
+
+        client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+    }
+
+    @Test
+    fun `sendterapporteringsperioder skal bruke ident fra TokenX selv om det finnes ident i header`() = testSendteRapporteringsperioder {
+        val token = issueToken(ident)
+
+        client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            header("ident", "01020312346")
+        }
+    }
+
+    @Test
+    fun `sendterapporteringsperioder med Azure-token men uten ident-header skal gi BadRequest`() = setUpTestApplication {
+        val token = issueAzureToken()
+
+        val response = client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("ident mangler", response.bodyAsText())
+    }
+
+    @Test
+    fun `sendterapporteringsperioder med Azure-token skal fungere`() = testSendteRapporteringsperioder {
+        val token = issueAzureToken()
+
+        client.get("/sendterapporteringsperioder") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            header("ident", ident)
+        }
+    }
+
+    private fun testSendteRapporteringsperioder(block: suspend ApplicationTestBuilder.() -> HttpResponse) =
+        setUpTestApplication {
+            externalServices {
+                hosts("https://meldekortservice") {
+                    routing {
+                        get("/v2/historiskemeldekort") {
+                            call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                            call.respond(personString)
+                        }
+                        get("/v2/meldekortdetaljer") {
+                            call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                            call.respond(meldekortdetaljer)
+                        }
+                    }
+                }
+            }
+
+            val response = block()
+
+            checkResponse(response)
+        }
+
+    private suspend fun checkResponse(response: HttpResponse) {
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val rapporteringsperioder = defaultObjectMapper.readValue<List<Rapporteringsperiode>>(response.bodyAsText())
+        // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
+        // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
+        assertEquals(4, rapporteringsperioder.size)
+        assertEquals(1234567890, rapporteringsperioder[0].id)
+        assertEquals(1234567892, rapporteringsperioder[1].id)
+        assertEquals(1234567893, rapporteringsperioder[2].id)
+        assertEquals(1234567894, rapporteringsperioder[3].id)
+
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
+        assertEquals(14, rapporteringsperioder[0].dager.size)
+        assertEquals(0, rapporteringsperioder[0].dager[0].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].dager[0].dato)
+        assertEquals(13, rapporteringsperioder[0].dager[13].dagIndex)
+        assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].dager[13].dato)
+        assertEquals(LocalDate.parse("2024-04-20"), rapporteringsperioder[0].kanSendesFra)
+        assertEquals(false, rapporteringsperioder[0].kanSendes)
+        assertEquals(true, rapporteringsperioder[0].kanEndres)
+        assertEquals(RapporteringsperiodeStatus.Innsendt, rapporteringsperioder[0].status)
+        assertEquals(null, rapporteringsperioder[0].mottattDato)
+        assertEquals(0.0, rapporteringsperioder[0].bruttoBelop)
+        assertEquals(null, rapporteringsperioder[0].registrertArbeidssoker)
+        assertEquals("Bla bla", rapporteringsperioder[0].begrunnelseEndring)
+
+        val aktivitetsdager = rapporteringsperioder[0].dager
+        assertEquals(14, aktivitetsdager.size)
+
+        assertEquals(0, aktivitetsdager[0].dagIndex)
+        assertEquals(13, aktivitetsdager[13].dagIndex)
+
+        assertEquals(LocalDate.parse("2024-04-08"), aktivitetsdager[0].dato)
+        assertEquals(0, aktivitetsdager[0].aktiviteter.size)
+
+        assertEquals(LocalDate.parse("2024-04-09"), aktivitetsdager[1].dato)
+        assertEquals(1, aktivitetsdager[1].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[1].aktiviteter[0].type)
+        assertEquals(7.5, aktivitetsdager[1].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-10"), aktivitetsdager[2].dato)
+        assertEquals(1, aktivitetsdager[2].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[2].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[2].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-11"), aktivitetsdager[3].dato)
+        assertEquals(1, aktivitetsdager[3].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[3].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[3].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-12"), aktivitetsdager[4].dato)
+        assertEquals(1, aktivitetsdager[4].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[4].aktiviteter[0].type)
+        assertEquals(null, aktivitetsdager[4].aktiviteter[0].timer)
+
+        assertEquals(LocalDate.parse("2024-04-13"), aktivitetsdager[5].dato)
+        assertEquals(4, aktivitetsdager[5].aktiviteter.size)
+        assertEquals(Aktivitet.AktivitetsType.Arbeid, aktivitetsdager[5].aktiviteter[0].type)
+        assertEquals(8.0, aktivitetsdager[5].aktiviteter[0].timer)
+        assertEquals(Aktivitet.AktivitetsType.Syk, aktivitetsdager[5].aktiviteter[1].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[1].timer)
+        assertEquals(Aktivitet.AktivitetsType.Utdanning, aktivitetsdager[5].aktiviteter[2].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[2].timer)
+        assertEquals(Aktivitet.AktivitetsType.Fravaer, aktivitetsdager[5].aktiviteter[3].type)
+        assertEquals(null, aktivitetsdager[5].aktiviteter[3].timer)
+
+        assertEquals(LocalDate.parse("2024-04-21"), aktivitetsdager[13].dato)
+        assertEquals(0, aktivitetsdager[13].aktiviteter.size)
+
+        assertEquals(RapporteringsperiodeStatus.Endret, rapporteringsperioder[1].status)
+        assertEquals("2024-05-19", rapporteringsperioder[1].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[2].status)
+        assertEquals("2024-05-20", rapporteringsperioder[2].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+
+        assertEquals(RapporteringsperiodeStatus.Feilet, rapporteringsperioder[3].status)
+        assertEquals("2024-06-01", rapporteringsperioder[3].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+    }
+}
