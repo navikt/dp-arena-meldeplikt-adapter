@@ -37,6 +37,10 @@ spec:
       value: 'https://{{ meldekortkontrollHost }}/api/v1/kontroll'
     - name: MELDEKORTKONTROLL_AUDIENCE
       value: "{{ meldekortkontrollAudience }}"
+    - name: DP_PROXY_URL
+      value: https://{{ dpProxyHost }}
+    - name: DP_PROXY_SCOPE
+      value: "{{ dpProxyScope }}"
     - name: JDK_JAVA_OPTIONS # Bytter GC og lar JVMen se at det er flere CPU kjerner
       value: -XX:+UseParallelGC -XX:ActiveProcessorCount=4
   tokenx:

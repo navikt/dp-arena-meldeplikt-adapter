@@ -14,7 +14,7 @@ data class Meldekortdetaljer(
     val meldeDato: LocalDate? = null,
     val lestDato: LocalDate? = null,
     val sporsmal: Sporsmal? = null,
-    val begrunnelse: String? = ""
+    val begrunnelse: String? = null,
 )
 
 data class Sporsmal(
