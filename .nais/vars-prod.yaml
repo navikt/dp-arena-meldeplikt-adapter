@@ -4,3 +4,5 @@ meldekortserviceHost: meldekortservice.prod-fss-pub.nais.io
 meldekortserviceAudience: prod-fss:meldekort:meldekortservice
 meldekortkontrollHost: meldekortkontroll-api.prod-fss-pub.nais.io
 meldekortkontrollAudience: prod-fss:meldekort:meldekortkontroll-api
+dpProxyHost: dp-proxy.prod-fss-pub.nais.io
+dpProxyScope: api://prod-fss.teamdagpenger.dp-proxy/.default

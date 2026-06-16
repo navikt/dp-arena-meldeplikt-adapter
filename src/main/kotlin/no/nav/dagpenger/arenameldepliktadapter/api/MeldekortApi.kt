@@ -26,15 +26,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
+import no.nav.dagpenger.arenameldepliktadapter.ArenaProxyClient
 import no.nav.dagpenger.arenameldepliktadapter.models.Aktivitet
+import no.nav.dagpenger.arenameldepliktadapter.models.ArenaMeldekort
 import no.nav.dagpenger.arenameldepliktadapter.models.Dag
+import no.nav.dagpenger.arenameldepliktadapter.models.DatadelingRequest
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingFeil
 import no.nav.dagpenger.arenameldepliktadapter.models.InnsendingResponse
 import no.nav.dagpenger.arenameldepliktadapter.models.KortType
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekort
+import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortBeregningstatus
 import no.nav.dagpenger.arenameldepliktadapter.models.Meldekortdetaljer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollFravaer
 import no.nav.dagpenger.arenameldepliktadapter.models.MeldekortkontrollRequest
@@ -46,24 +49,32 @@ import no.nav.dagpenger.arenameldepliktadapter.models.Person
 import no.nav.dagpenger.arenameldepliktadapter.models.Rapporteringsperiode
 import no.nav.dagpenger.arenameldepliktadapter.models.RapporteringsperiodeStatus
 import no.nav.dagpenger.arenameldepliktadapter.utils.UUIDv7
-import no.nav.dagpenger.arenameldepliktadapter.utils.decodeToken
 import no.nav.dagpenger.arenameldepliktadapter.utils.defaultObjectMapper
-import no.nav.dagpenger.arenameldepliktadapter.utils.extractSubject
 import no.nav.dagpenger.arenameldepliktadapter.utils.getEnv
-import no.nav.dagpenger.arenameldepliktadapter.utils.isCurrentlyRunningLocally
-import no.nav.dagpenger.oauth2.CachedOauth2Client
-import no.nav.dagpenger.oauth2.OAuth2Config
+import no.nav.dagpenger.arenameldepliktadapter.utils.hentAzureToken
+import no.nav.dagpenger.arenameldepliktadapter.utils.hentIdentFraToken
+import no.nav.dagpenger.arenameldepliktadapter.utils.hentTokenX
+import no.nav.dagpenger.arenameldepliktadapter.utils.isAzureToken
+import no.nav.dagpenger.arenameldepliktadapter.utils.tokenXExchanger
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
 private const val MAX_THREAD_QTY = 20
 
 fun Routing.meldekortApi(httpClient: HttpClient) {
+    val arenaProxyClient = ArenaProxyClient(httpClient)
+    val meldekortserviceAudience =
+        getEnv("MELDEKORTSERVICE_AUDIENCE") ?: throw IllegalStateException("MELDEKORTSERVICE_AUDIENCE er ikke satt")
+    val azureScope = "api://${meldekortserviceAudience.replace(":", ".")}/.default"
+
     authenticate {
         route("/hardpmeldeplikt") {
             get {
                 try {
+                    val authString = call.request.header(HttpHeaders.Authorization)
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
@@ -71,13 +82,18 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     var ident: String
                     var token: String
 
-                    if (identFromHeader.isNullOrBlank()) {
+                    if (isAzureToken(authString)) {
+                        if (identFromHeader.isNullOrBlank()) {
+                            call.respond(HttpStatusCode.BadRequest, "ident mangler")
+                            return@get
+                        }
+
+                        ident = identFromHeader
+                        token = hentAzureToken(azureScope)
+                    } else {
                         val pair = hentTokenX(call.request.headers["Authorization"])
                         ident = pair.first
                         token = pair.second
-                    } else {
-                        ident = identFromHeader
-                        token = hentAzureToken()
                     }
 
                     val request = MeldestatusRequest(
@@ -88,7 +104,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         sendPostRequestTilMeldekortservice(
                             httpClient,
                             token,
-                            null,
                             callId,
                             "/v2/meldestatus",
                             defaultObjectMapper.writeValueAsString(request)
@@ -141,7 +156,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                         sendPostRequestTilMeldekortservice(
                             httpClient,
                             token,
-                            null,
                             callId,
                             "/v2/meldestatus",
                             defaultObjectMapper.writeValueAsString(request)
@@ -186,22 +200,12 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     call.response.header(HttpHeaders.XRequestId, callId)
                     val ident = call.request.headers["ident"]
 
-                    val response = if (ident != null) {
-                        logger.info { "Ident var ikke null, så henter rapporteringsperioder med azure token" }
-                        sendHttpRequestWithRetry(
-                            sendGetRequestTilMeldekortservice(
-                                httpClient,
-                                hentAzureToken(),
-                                ident,
-                                callId,
-                                "/v2/meldekort"
-                            )
-                        )
-                    } else {
-                        sendHttpRequestWithRetry(
-                            sendGetRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
-                        )
+                    if (isAzureToken(authString) && ident.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, "ident mangler")
+                        return@get
                     }
+
+                    val response = hentRapporteringsperioder(ident, httpClient, callId, azureScope, authString)
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -284,12 +288,22 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val callId = getcallId(call.request.headers)
                     call.response.header(HttpHeaders.XRequestId, callId)
 
+                    call.response.header(
+                        "Warning",
+                        "299 dp-arena-meldeplikt-adapter " +
+                                "\"Dette endepunktet henter innsendte rapporteringsperioder på en lite effektiv måte, og bør ikke brukes. Bruk heller /innsendte-rapporteringsperioder\"",
+                    )
+
                     val ident = call.request.headers["ident"]
                     val antallMeldeperioder = call.request.queryParameters["antallMeldeperioder"]?.toIntOrNull() ?: 10
 
-                    val meldekortserviceDataHenter = MeldekortserviceDataHenter(ident, httpClient, callId, authString)
+                    if (isAzureToken(authString) && ident.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, "ident mangler")
+                        return@get
+                    }
 
-                    val response = meldekortserviceDataHenter.hentHistoriskeMeldekort(antallMeldeperioder)
+                    val response =
+                        hentHistoriskeMeldekort(ident, httpClient, callId, azureScope, authString, antallMeldeperioder)
 
                     if (response.status == HttpStatusCode.NoContent) {
                         call.response.status(HttpStatusCode.NoContent)
@@ -307,7 +321,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     }
 
                     var rapporteringsperioder: List<Rapporteringsperiode> = emptyList()
-                    val threadsQty = if(antallMeldeperioder > MAX_THREAD_QTY) MAX_THREAD_QTY else antallMeldeperioder
+                    val threadsQty = if (antallMeldeperioder > MAX_THREAD_QTY) MAX_THREAD_QTY else antallMeldeperioder
 
                     val limitedDispatcher = Dispatchers.IO.limitedParallelism(threadsQty)
                     withContext(limitedDispatcher) {
@@ -317,7 +331,14 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                             async {
                                 val kanSendesFra = meldekort.tilDato.minusDays(1)
 
-                                val meldekortdetaljer = meldekortserviceDataHenter.hentMeldekortDetaljer(meldekort.meldekortId)
+                                val meldekortdetaljer = hentMeldekortDetaljer(
+                                    ident,
+                                    httpClient,
+                                    callId,
+                                    azureScope,
+                                    authString,
+                                    meldekort.meldekortId
+                                )
 
                                 val aktivitetsdager = mapAktivitetsdager(meldekort.fraDato, meldekortdetaljer)
 
@@ -349,6 +370,75 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                                 )
                             }
                         }.awaitAll()
+                    }
+
+                    call.respondText(
+                        defaultObjectMapper.writeValueAsString(rapporteringsperioder),
+                        ContentType.Application.Json
+                    )
+                } catch (e: Exception) {
+                    logger.error(e) { "Feil ved henting av innsendte rapporteringsperioder" }
+                    call.response.status(HttpStatusCode.InternalServerError)
+                }
+            }
+        }
+
+        route("/innsendte-rapporteringsperioder") {
+            post {
+                try {
+                    logger.info { "Henter innsendte rapporteringsperioder" }
+                    val authString = call.request.header(HttpHeaders.Authorization)
+                    val callId = getcallId(call.request.headers)
+                    call.response.header(HttpHeaders.XRequestId, callId)
+
+                    val requestText = call.receiveText()
+                    if (requestText.isBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, "Request body kan ikke være tom")
+                        return@post
+                    }
+
+                    val request = runCatching { defaultObjectMapper.readValue<DatadelingRequest>(requestText) }
+                        .getOrElse {
+                            call.respond(HttpStatusCode.BadRequest, "Ugyldig request body")
+                            return@post
+                        }
+
+                    if (!isAzureToken(authString) && request.personIdent != hentIdentFraToken(authString)) {
+                        call.respond(HttpStatusCode.Unauthorized, "Ident i token er ikke lik ident i request")
+                        return@post
+                    }
+
+                    val meldekortListe = arenaProxyClient.hentInnsendteMeldekort(request)
+
+                    val rapporteringsperioder = meldekortListe.map { meldekort ->
+                        val aktivitetsdager = mapAktivitetsdager(meldekort)
+
+                        Rapporteringsperiode(
+                            meldekort.id.toLong(),
+                            KortType.valueOf(meldekort.type.value),
+                            Periode(
+                                meldekort.periode.fraOgMed,
+                                meldekort.periode.tilOgMed,
+                            ),
+                            aktivitetsdager,
+                            meldekort.kanSendesFra,
+                            meldekort.kanSendes,
+                            meldekort.kanEndres,
+                            when (meldekort.beregningstatus) {
+                                in arrayOf(
+                                    MeldekortBeregningstatus.FERDI,
+                                    MeldekortBeregningstatus.IKKE
+                                ) -> RapporteringsperiodeStatus.Ferdig
+
+                                MeldekortBeregningstatus.OVERM -> RapporteringsperiodeStatus.Endret
+                                MeldekortBeregningstatus.FEIL -> RapporteringsperiodeStatus.Feilet
+                                else -> RapporteringsperiodeStatus.Innsendt
+                            },
+                            meldekort.meldedato,
+                            meldekort.belop?.toDouble(),
+                            meldekort.registrertArbeidssoker,
+                            meldekort.begrunnelse,
+                        )
                     }
 
                     call.respondText(
@@ -506,8 +596,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                     val response = sendHttpRequestWithRetry(
                         sendPostRequestTilMeldekortservice(
                             httpClient,
-                            hentAzureToken(),
-                            null,
+                            hentAzureToken(azureScope),
                             callId,
                             "/v2/meldestatus",
                             request
@@ -528,24 +617,6 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
     }
 }
 
-private fun hentTokenX(authString: String?): Pair<String, String> {
-    val incomingToken = authString?.replace("Bearer ", "") ?: ""
-    val decodedToken = decodeToken(authString)
-    val ident = extractSubject(decodedToken) ?: ""
-
-    val tokenProvider = tokenXExchanger(incomingToken, getEnv("MELDEKORTSERVICE_AUDIENCE") ?: "")
-    val token = tokenProvider.invoke()
-
-    return Pair(ident, token)
-}
-
-private fun hentAzureToken(): String {
-    logger.info("Henter AzureToken")
-    val scope = "api://" + getEnv("MELDEKORTSERVICE_AUDIENCE")?.replace(":", ".") + "/.default"
-    val tokenProvider = azureAdExchanger(scope)
-    return tokenProvider.invoke()
-}
-
 private suspend fun sendHttpRequestWithRetry(
     fn: suspend () -> HttpResponse
 ): HttpResponse {
@@ -555,7 +626,7 @@ private suspend fun sendHttpRequestWithRetry(
     val okStatuses = arrayOf(HttpStatusCode.OK, HttpStatusCode.NoContent)
 
     do {
-        if (retries > 0) delay(1000)
+        if (retries > 0) delay(1000.milliseconds)
 
         response = try {
             fn.invoke()
@@ -573,10 +644,99 @@ private suspend fun sendHttpRequestWithRetry(
     return response
 }
 
+private suspend fun hentRapporteringsperioder(
+    ident: String?,
+    httpClient: HttpClient,
+    callId: String,
+    azureScope: String,
+    authString: String?
+): HttpResponse = if (isAzureToken(authString)) {
+    logger.info { "Henter rapporteringsperioder med Azure-token" }
+    sendHttpRequestWithRetry(
+        sendGetRequestTilMeldekortservice(
+            httpClient,
+            hentAzureToken(azureScope),
+            ident,
+            callId,
+            "/v2/meldekort"
+        )
+    )
+} else {
+    logger.info { "Henter rapporteringsperioder med TokenX" }
+    sendHttpRequestWithRetry(
+        sendGetRequestTilMeldekortservice(httpClient, authString, callId, "/v2/meldekort")
+    )
+}
+
+private suspend fun hentHistoriskeMeldekort(
+    ident: String?,
+    httpClient: HttpClient,
+    callId: String,
+    azureScope: String,
+    authString: String?,
+    antallMeldeperioder: Int
+) = if (isAzureToken(authString)) {
+    logger.info { "Henter historiske meldekort med Azure-token" }
+    sendHttpRequestWithRetry(
+        sendGetRequestTilMeldekortservice(
+            httpClient,
+            hentAzureToken(azureScope),
+            ident,
+            callId,
+            "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
+        )
+    )
+} else {
+    logger.info { "Henter historiske meldekort med TokenX" }
+    sendHttpRequestWithRetry(
+        sendGetRequestTilMeldekortservice(
+            httpClient,
+            authString,
+            callId,
+            "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
+        )
+    )
+}
+
+private suspend fun hentMeldekortDetaljer(
+    ident: String?,
+    httpClient: HttpClient,
+    callId: String,
+    azureScope: String,
+    authString: String?,
+    meldekortId: Long
+): Meldekortdetaljer {
+    val responseDetaljer =
+        if (isAzureToken(authString)) {
+            sendHttpRequestWithRetry(
+                sendGetRequestTilMeldekortservice(
+                    httpClient,
+                    hentAzureToken(azureScope),
+                    ident,
+                    callId,
+                    "/v2/meldekortdetaljer?meldekortId=$meldekortId"
+                )
+            )
+        } else {
+            sendHttpRequestWithRetry(
+                sendGetRequestTilMeldekortservice(
+                    httpClient,
+                    authString,
+                    callId,
+                    "/v2/meldekortdetaljer?meldekortId=$meldekortId"
+                )
+            )
+        }
+
+    return defaultObjectMapper.readValue<Meldekortdetaljer>(
+        responseDetaljer.bodyAsText()
+    )
+}
+
 private fun sendGetRequestTilMeldekortservice(
     httpClient: HttpClient,
     token: String,
-    ident: String,
+    ident: String?,
     callId: String,
     path: String
 ): suspend () -> HttpResponse = {
@@ -584,7 +744,7 @@ private fun sendGetRequestTilMeldekortservice(
         header(HttpHeaders.Authorization, "Bearer $token")
         header(HttpHeaders.Accept, ContentType.Application.Json)
         header(HttpHeaders.XRequestId, callId)
-        header("ident", ident)
+        if (!ident.isNullOrBlank()) header("ident", ident)
     }
 }
 
@@ -602,7 +762,6 @@ private fun sendGetRequestTilMeldekortservice(
 private fun sendPostRequestTilMeldekortservice(
     httpClient: HttpClient,
     token: String,
-    ident: String? = null,
     callId: String,
     path: String,
     body: String? = null,
@@ -612,7 +771,6 @@ private fun sendPostRequestTilMeldekortservice(
         header(HttpHeaders.Accept, ContentType.Application.Json)
         header(HttpHeaders.ContentType, ContentType.Application.Json)
         header(HttpHeaders.XRequestId, callId)
-        if (ident != null) header("ident", ident)
         if (body != null) setBody(body)
     }
 }
@@ -695,109 +853,55 @@ private fun mapAktivitetsdager(fom: LocalDate, meldekortdetaljer: Meldekortdetal
     return aktivitetsdager
 }
 
+private fun mapAktivitetsdager(arenaMeldekort: ArenaMeldekort): List<Dag> {
+    val fraOgMed = arenaMeldekort.periode.fraOgMed
+
+    val aktivitetsdager = List(14) { index ->
+        Dag(fraOgMed.plusDays(index.toLong()), mutableListOf(), index)
+    }
+    arenaMeldekort.dager.forEach { dag ->
+        if (dag.dagIndex !in aktivitetsdager.indices) return@forEach
+        if (dag.arbeidsdag && dag.timer > BigDecimal.ZERO) {
+            (aktivitetsdager[dag.dagIndex].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUIDv7.newUuid(),
+                    Aktivitet.AktivitetsType.Arbeid,
+                    dag.timer.toDouble()
+                )
+            )
+        }
+        if (dag.syk) {
+            (aktivitetsdager[dag.dagIndex].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUIDv7.newUuid(),
+                    Aktivitet.AktivitetsType.Syk,
+                    null
+                )
+            )
+        }
+        if (dag.kurs) {
+            (aktivitetsdager[dag.dagIndex].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUIDv7.newUuid(),
+                    Aktivitet.AktivitetsType.Utdanning,
+                    null
+                )
+            )
+        }
+        if (dag.annetfravaer) {
+            (aktivitetsdager[dag.dagIndex].aktiviteter as MutableList).add(
+                Aktivitet(
+                    UUIDv7.newUuid(),
+                    Aktivitet.AktivitetsType.Fravaer,
+                    null
+                )
+            )
+        }
+    }
+
+    return aktivitetsdager
+}
+
 private fun getcallId(headers: Headers): String {
     return headers[HttpHeaders.XRequestId] ?: "dp-adapter-${UUIDv7.newUuid()}"
-}
-
-private fun tokenXExchanger(token: String, audience: String): () -> String = {
-    if (isCurrentlyRunningLocally()) {
-        ""
-    } else {
-        runBlocking { tokenXClient.tokenExchange(token, audience).access_token ?: "" }
-    }
-}
-
-private fun azureAdExchanger(scope: String): () -> String = {
-    if (isCurrentlyRunningLocally()) {
-        ""
-    } else {
-        runBlocking { azureAdClient.clientCredentials(scope).access_token ?: "" }
-    }
-}
-
-private val tokenXClient: CachedOauth2Client by lazy {
-    val config = HashMap<String, String>()
-    config["TOKEN_X_CLIENT_ID"] = getEnv("TOKEN_X_CLIENT_ID") ?: ""
-    config["TOKEN_X_PRIVATE_JWK"] = getEnv("TOKEN_X_PRIVATE_JWK") ?: ""
-    config["TOKEN_X_WELL_KNOWN_URL"] = getEnv("TOKEN_X_WELL_KNOWN_URL") ?: ""
-
-    val tokenXConfig = OAuth2Config.TokenX(config)
-    CachedOauth2Client(
-        tokenEndpointUrl = tokenXConfig.tokenEndpointUrl,
-        authType = tokenXConfig.privateKey(),
-    )
-}
-
-private val azureAdClient: CachedOauth2Client by lazy {
-    val config = HashMap<String, String>()
-    config["AZURE_APP_CLIENT_ID"] = getEnv("AZURE_APP_CLIENT_ID") ?: ""
-    config["AZURE_APP_CLIENT_SECRET"] = getEnv("AZURE_APP_CLIENT_SECRET") ?: ""
-    config["AZURE_APP_PRIVATE_JWK"] = getEnv("AZURE_APP_PRIVATE_JWK") ?: ""
-    config["AZURE_OPENID_CONFIG_TOKEN_ENDPOINT"] = getEnv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT") ?: ""
-    config["AZURE_APP_WELL_KNOWN_URL"] = getEnv("AZURE_APP_WELL_KNOWN_URL") ?: ""
-
-    val azureAdConfig = OAuth2Config.AzureAd(config)
-    CachedOauth2Client(
-        tokenEndpointUrl = azureAdConfig.tokenEndpointUrl,
-        authType = azureAdConfig.clientSecret(),
-    )
-}
-
-private class MeldekortserviceDataHenter(
-    private val ident: String?,
-    private val httpClient: HttpClient,
-    private val callId: String,
-    private val authString: String?,
-) {
-    private val token: String? = ident?.let { hentAzureToken() }
-
-    suspend fun hentHistoriskeMeldekort(antallMeldeperioder: Int) = if (ident != null) {
-        logger.info { "Ident var ikke null, så henter historiske meldekort med azure token" }
-        sendHttpRequestWithRetry(
-            sendGetRequestTilMeldekortservice(
-                httpClient,
-                token!!,
-                ident,
-                callId,
-                "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
-            )
-        )
-    } else {
-        sendHttpRequestWithRetry(
-            sendGetRequestTilMeldekortservice(
-                httpClient,
-                authString,
-                callId,
-                "/v2/historiskemeldekort?antallMeldeperioder=$antallMeldeperioder"
-            )
-        )
-    }
-
-    suspend fun hentMeldekortDetaljer(meldekortId: Long): Meldekortdetaljer {
-        val responseDetaljer =
-            if (ident != null) {
-                sendHttpRequestWithRetry(
-                    sendGetRequestTilMeldekortservice(
-                        httpClient,
-                        token!!,
-                        ident,
-                        callId,
-                        "/v2/meldekortdetaljer?meldekortId=$meldekortId"
-                    )
-                )
-            } else {
-                sendHttpRequestWithRetry(
-                    sendGetRequestTilMeldekortservice(
-                        httpClient,
-                        authString,
-                        callId,
-                        "/v2/meldekortdetaljer?meldekortId=$meldekortId"
-                    )
-                )
-            }
-
-        return defaultObjectMapper.readValue<Meldekortdetaljer>(
-            responseDetaljer.bodyAsText()
-        )
-    }
 }
