@@ -28,7 +28,7 @@ jobs:
       id-token: write
     environment: dev-gcp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
@@ -39,7 +39,7 @@ jobs:
 
   deploy-prod:
     name: Deploy to Production
-    needs: [ build ]
+    needs: [ build, deploy-dev ]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -47,7 +47,7 @@ jobs:
       id-token: write
     environment: prod-gcp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: prod-gcp
