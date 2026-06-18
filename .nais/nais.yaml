@@ -66,6 +66,9 @@ spec:
       external:
         - host: "{{ meldekortserviceHost }}"
         - host: "{{ meldekortkontrollHost }}"
+      rules:
+        - application: logging
+          namespace: nais-system
   observability:
     logging:
       destinations:
