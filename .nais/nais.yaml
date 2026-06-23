@@ -4,7 +4,9 @@ metadata:
   name: dp-arena-meldeplikt-adapter
   namespace: teamdagpenger
   labels:
-    team: teamdagpenger
+    team: "teamdagpenger"
+    app: "dp-arena-meldeplikt-adapter"
+    subteam: "ramp"
 spec:
   image: "{{ image }}"
   port: 8080
