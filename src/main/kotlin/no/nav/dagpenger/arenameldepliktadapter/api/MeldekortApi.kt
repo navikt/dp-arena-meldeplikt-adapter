@@ -363,7 +363,7 @@ fun Routing.meldekortApi(httpClient: HttpClient) {
                                         "FEIL" -> RapporteringsperiodeStatus.Feilet
                                         else -> RapporteringsperiodeStatus.Innsendt
                                     },
-                                    meldekort.mottattDato,
+                                    meldekortdetaljer.meldeDato ?: meldekort.mottattDato,
                                     meldekort.bruttoBelop.toDouble(),
                                     meldekortdetaljer.sporsmal?.arbeidssoker,
                                     meldekortdetaljer.begrunnelse

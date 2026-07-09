@@ -25,7 +25,27 @@ import kotlin.test.assertEquals
 class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
     private val personId = 1234L
     private val ident = "01020312345"
-    private val meldekortId = 1234567890L
+
+    private val meldekortId0 = 1234567890L
+    private val meldekortId1 = 1234567891L
+    private val meldekortId2 = 1234567892L
+    private val meldekortId3 = 1234567893L
+    private val meldekortId4 = 1234567894L
+
+    private val mottattDato2 = LocalDate.of(2024, 5, 19)
+    private val mottattDato3 = LocalDate.of(2024, 5, 20)
+    private val mottattDato4 = LocalDate.of(2024, 6, 1)
+
+    private val meldedato2 = LocalDate.of(2024, 5, 19)
+    private val meldedato3 = LocalDate.of(2024, 5, 19) // Korrigert meldekort tar meldedato fra originalt meldekort
+    private val meldedato4 = LocalDate.of(2024, 6, 1)
+
+    private val meldeDatoer = mapOf(
+        meldekortId2 to meldedato2,
+        meldekortId3 to meldedato3,
+        meldekortId4 to meldedato4
+    )
+
     private val personString = """
         {
             "personId": 5134902,
@@ -35,7 +55,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
             "meldeform": "EMELD",
             "meldekortListe": [
                 {
-                    "meldekortId": $meldekortId,
+                    "meldekortId": $meldekortId0,
                     "kortType": "05",
                     "meldeperiode": "202415",
                     "fraDato": "2024-04-08",
@@ -46,7 +66,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                     "bruttoBelop": 0.0
                 },
                 {
-                    "meldekortId": 1234567891,
+                    "meldekortId": $meldekortId1,
                     "kortType": "09",
                     "meldeperiode": "202417",
                     "fraDato": "2024-04-22",
@@ -57,7 +77,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                     "bruttoBelop": 0.0
                 },
                 {
-                    "meldekortId": 1234567892,
+                    "meldekortId": $meldekortId2,
                     "kortType": "05",
                     "meldeperiode": "202419",
                     "fraDato": "2024-05-06",
@@ -65,11 +85,11 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                     "hoyesteMeldegruppe": "ARBS",
                     "beregningstatus": "OVERM",
                     "forskudd": false,
-                    "mottattDato": "2024-05-19",
+                    "mottattDato": "${mottattDato2.format(DateTimeFormatter.ISO_DATE)}",
                     "bruttoBelop": 0.0
                 },
                 {
-                    "meldekortId": 1234567893,
+                    "meldekortId": $meldekortId3,
                     "kortType": "10",
                     "meldeperiode": "202419",
                     "fraDato": "2024-05-06",
@@ -77,11 +97,11 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                     "hoyesteMeldegruppe": "ARBS",
                     "beregningstatus": "FERDI",
                     "forskudd": false,
-                    "mottattDato": "2024-05-20",
+                    "mottattDato": "${mottattDato3.format(DateTimeFormatter.ISO_DATE)}",
                     "bruttoBelop": 0.0
                 },
                 {
-                    "meldekortId": 1234567894,
+                    "meldekortId": $meldekortId4,
                     "kortType": "05",
                     "meldeperiode": "202420",
                     "fraDato": "2024-05-20",
@@ -89,7 +109,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                     "hoyesteMeldegruppe": "ARBS",
                     "beregningstatus": "FEIL",
                     "forskudd": false,
-                    "mottattDato": "2024-06-01",
+                    "mottattDato": "${mottattDato4.format(DateTimeFormatter.ISO_DATE)}",
                     "bruttoBelop": 0.0
                 }
             ],
@@ -97,7 +117,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
         }
     """.trimIndent()
 
-    private val meldekortdetaljer = """
+    private fun meldekortdetaljer(meldekortId: Long) = """
             {
                 "id": "",
                 "personId": $personId,
@@ -107,6 +127,7 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                 "meldegruppe": "",
                 "arkivnokkel": "",
                 "kortType": "KORT_TYPE",
+                "meldeDato": ${meldeDatoer[meldekortId]?.format(DateTimeFormatter.ISO_DATE)?.let { "\"$it\"" } ?: "null" },
                 "sporsmal": {
                     "meldekortDager": [
                         {
@@ -202,30 +223,32 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
     }
 
     @Test
-    fun `sendterapporteringsperioder skal bruke ident fra TokenX selv om det finnes ident i header`() = testSendteRapporteringsperioder {
-        val token = issueToken(ident)
+    fun `sendterapporteringsperioder skal bruke ident fra TokenX selv om det finnes ident i header`() =
+        testSendteRapporteringsperioder {
+            val token = issueToken(ident)
 
-        client.get("/sendterapporteringsperioder") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            header("ident", "01020312346")
+            client.get("/sendterapporteringsperioder") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                header(HttpHeaders.Accept, ContentType.Application.Json)
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+                header("ident", "01020312346")
+            }
         }
-    }
 
     @Test
-    fun `sendterapporteringsperioder med Azure-token men uten ident-header skal gi BadRequest`() = setUpTestApplication {
-        val token = issueAzureToken()
+    fun `sendterapporteringsperioder med Azure-token men uten ident-header skal gi BadRequest`() =
+        setUpTestApplication {
+            val token = issueAzureToken()
 
-        val response = client.get("/sendterapporteringsperioder") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            val response = client.get("/sendterapporteringsperioder") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                header(HttpHeaders.Accept, ContentType.Application.Json)
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals("ident mangler", response.bodyAsText())
         }
-
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        assertEquals("ident mangler", response.bodyAsText())
-    }
 
     @Test
     fun `sendterapporteringsperioder med Azure-token skal fungere`() = testSendteRapporteringsperioder {
@@ -249,8 +272,10 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
                             call.respond(personString)
                         }
                         get("/v2/meldekortdetaljer") {
+                            val meldekortId = call.request.queryParameters["meldekortId"]!!.toLong()
+
                             call.response.header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                            call.respond(meldekortdetaljer)
+                            call.respond(meldekortdetaljer(meldekortId))
                         }
                     }
                 }
@@ -268,10 +293,10 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
         // Må filtrere bort meldekort som ikke har meldegruppe ARBS eller DAGP
         // Hvis det finnes 2 meldekort med samme periode, må vi ta kun det siste (korrigert)
         assertEquals(4, rapporteringsperioder.size)
-        assertEquals(1234567890, rapporteringsperioder[0].id)
-        assertEquals(1234567892, rapporteringsperioder[1].id)
-        assertEquals(1234567893, rapporteringsperioder[2].id)
-        assertEquals(1234567894, rapporteringsperioder[3].id)
+        assertEquals(meldekortId0, rapporteringsperioder[0].id)
+        assertEquals(meldekortId2, rapporteringsperioder[1].id)
+        assertEquals(meldekortId3, rapporteringsperioder[2].id)
+        assertEquals(meldekortId4, rapporteringsperioder[3].id)
 
         assertEquals(LocalDate.parse("2024-04-08"), rapporteringsperioder[0].periode.fraOgMed)
         assertEquals(LocalDate.parse("2024-04-21"), rapporteringsperioder[0].periode.tilOgMed)
@@ -333,12 +358,12 @@ class MeldekortApiSendteRapporteringsperioderTest : TestBase() {
         assertEquals(0, aktivitetsdager[13].aktiviteter.size)
 
         assertEquals(RapporteringsperiodeStatus.Endret, rapporteringsperioder[1].status)
-        assertEquals("2024-05-19", rapporteringsperioder[1].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+        assertEquals(meldedato2, rapporteringsperioder[1].mottattDato)
 
         assertEquals(RapporteringsperiodeStatus.Ferdig, rapporteringsperioder[2].status)
-        assertEquals("2024-05-20", rapporteringsperioder[2].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+        assertEquals(meldedato3, rapporteringsperioder[2].mottattDato)
 
         assertEquals(RapporteringsperiodeStatus.Feilet, rapporteringsperioder[3].status)
-        assertEquals("2024-06-01", rapporteringsperioder[3].mottattDato?.format(DateTimeFormatter.ISO_DATE))
+        assertEquals(meldedato4, rapporteringsperioder[3].mottattDato)
     }
 }
