@@ -1,4 +1,4 @@
-val ktorVersion = "3.5.1"
+val ktorVersion = "3.5.2"
 val jacksonVersion = "2.22.1"
 val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.6.1"
@@ -25,7 +25,7 @@ plugins {
     application
 
     // Apply the Ktor plugin to create the application distribution
-    id("io.ktor.plugin") version "3.5.1"
+    id("io.ktor.plugin") version "3.5.2"
 }
 
 application {
