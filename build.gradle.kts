@@ -3,7 +3,7 @@ val jacksonVersion = "2.22.1"
 val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.6.2"
 val logstashEncoderVersion = "9.0"
-val mockOauthVersion = "5.0.2"
+val mockOauthVersion = "6.0.0"
 val mockkVersion = "1.14.11"
 
 sourceSets {
