@@ -53,7 +53,7 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion")
 
     implementation("no.nav.security:token-validation-ktor-v3:6.0.12")
-    implementation("no.nav.dagpenger:oauth2-klient:2026.09.09-18.17.ef0d7db2c269")
+    implementation("no.nav.dagpenger:oauth2-klient:2026.09.10-10.45.1ea60774fcd8")
     implementation("com.auth0:java-jwt:4.6.1")
 
     implementation("io.github.microutils:kotlin-logging:$kotlinLoggingVersion")
