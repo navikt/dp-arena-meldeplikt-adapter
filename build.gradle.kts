@@ -4,7 +4,7 @@ val kotlinLoggingVersion = "3.0.5"
 val logbackVersion = "1.6.6"
 val logstashEncoderVersion = "9.0"
 val mockOauthVersion = "6.1.4"
-val mockkVersion = "1.14.11"
+val mockkVersion = "1.14.12"
 
 sourceSets {
     this.getByName("main") {
