@@ -1,7 +1,7 @@
 val ktorVersion = "3.6.1"
 val jacksonVersion = "2.23.0"
 val kotlinLoggingVersion = "3.0.5"
-val logbackVersion = "1.6.7"
+val logbackVersion = "1.6.8"
 val logstashEncoderVersion = "9.0"
 val mockOauthVersion = "7.0.1"
 val mockkVersion = "1.14.12"
@@ -44,7 +44,7 @@ dependencies {
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-metrics-micrometer:$ktorVersion")
-    implementation("io.micrometer:micrometer-registry-prometheus:1.17.2")
+    implementation("io.micrometer:micrometer-registry-prometheus:1.18.0")
 
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
